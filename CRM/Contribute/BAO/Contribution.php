@@ -118,7 +118,9 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     if (CRM_Utils_Array::value('skipCleanMoney', $params)) {
       unset($moneyFields[0]);
     }
-
+    if (!$contributionID) {
+      self::calculateMissingAmountParams($params);
+    }
     foreach ($moneyFields as $field) {
       if (isset($params[$field])) {
         $params[$field] = CRM_Utils_Rule::cleanMoney($params[$field]);
@@ -140,7 +142,7 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
 
     // contribution status is missing, choose Completed as default status
     // do this for create mode only
-    if (!CRM_Utils_Array::value('contribution', $ids) && !CRM_Utils_Array::value('contribution_status_id', $params)) {
+    if (!$contributionID && !CRM_Utils_Array::value('contribution_status_id', $params)) {
       $params['contribution_status_id'] = CRM_Core_OptionGroup::getValue('contribution_status', 'Completed', 'name');
     }
 
@@ -173,7 +175,7 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
 
     //add Account details
     $params['contribution'] = $contribution;
-    self::recordFinancialAccounts($params, $ids);
+    self::recordFinancialAccounts($params);
 
     // reset the group contact cache for this group
     CRM_Contact_BAO_GroupContactCache::remove();
@@ -216,6 +218,50 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
       return $contribution;
     }
     return NULL;
+  }
+
+  /**
+   * Calculate net_amount & fee_amount if they are not set.
+   *
+   * Net amount should be total - fee.
+   *
+   * @param array $params
+   */
+  public static function calculateMissingAmountParams(&$params) {
+    if (!isset($params['fee_amount'])) {
+      if (isset($params['total_amount']) && isset($params['net_amount'])) {
+        $params['fee_amount'] = $params['total_amount'] - $params['net_amount'];
+      }
+      else {
+        $params['fee_amount'] = 0;
+      }
+    }
+    if (!isset($params['net_amount'])) {
+      $params['net_amount'] = $params['total_amount'] - $params['fee_amount'];
+    }
+  }
+
+  /**
+   * Get the number of terms for this contribution for a given membership type
+   * based on querying the line item table and relevant price field values
+   * Note that any one contribution should only be able to have one line item relating to a particular membership
+   * type
+   *
+   * @param int $membershipTypeID
+   *
+   * @param int $contributionID
+   *
+   * @return int
+   */
+  public function getNumTermsByContributionAndMembershipType($membershipTypeID, $contributionID) {
+     $numTerms = CRM_Core_DAO::singleValueQuery("
+      SELECT membership_num_terms FROM civicrm_line_item li
+      LEFT JOIN civicrm_price_field_value v ON li.price_field_value_id = v.id
+      WHERE entity_id = %1 AND entity_table = 'civicrm_contribution' AND membership_type_id = %2",
+      array(1 => array($contributionID, 'Integer') , 2 => array($membershipTypeID, 'Integer'))
+    );
+    // default of 1 is precautionary
+    return empty($numTerms) ? 1 : $numTerms;
   }
 
   /**
@@ -1546,7 +1592,9 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
               $dates['end_date'],
               $dates['join_date'],
               'today',
-              TRUE
+              TRUE,
+              $membership->membership_type_id,
+              (array) $membership
             );
 
             $formattedParams = array(
@@ -1647,6 +1695,7 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
     $query = "
       SELECT    c.id                 as contribution_id,
                 c.contact_id         as contact_id,
+                c.contribution_recur_id,
                 mp.membership_id     as membership_id,
                 m.membership_type_id as membership_type_id,
                 pp.participant_id    as participant_id,
@@ -1681,6 +1730,9 @@ LEFT JOIN  civicrm_contribution contribution ON ( componentPayment.contribution_
       }
       if ($dao->pledge_payment_id) {
         $pledgePayment[] = $dao->pledge_payment_id;
+      }
+      if ($dao->contribution_recur_id) {
+        $componentDetails['contributionRecur'] = $dao->contribution_recur_id;
       }
     }
 
@@ -2045,9 +2097,13 @@ WHERE  contribution_id = %1 ";
         $entity = 'contribution';
         $entityID = $ids['contribution'];
       }
-      if (isset($ids['membership']) && $ids['membership']) {
+      if (!empty($ids['membership'])) {
+        //not sure whether is is possible for this not to be an array - load related contacts loads an array but this code was expecting a string
+        // the addition of the casting is in case it could get here & be a string. Added in 4.6 - maybe remove later? This AuthorizeNetIPN & PaypalIPN tests hit this
+        // line having loaded an array
+        $ids['membership'] = (array) $ids['membership'];
         $entity = 'membership';
-        $entityID = $ids['membership'];
+        $entityID = $ids['membership'][0];
       }
 
       $url = $paymentObject->subscriptionURL($entityID, $entity);
@@ -2714,8 +2770,8 @@ WHERE  contribution_id = %1 ";
     $itemAmount = $trxnID = NULL;
     //get all the statuses
     $contributionStatus = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
-    if (($params['prevContribution']->contribution_status_id == array_search('Pending', $contributionStatus) 
-      || $params['prevContribution']->contribution_status_id == array_search('In Progress', $contributionStatus)) 
+    if (($params['prevContribution']->contribution_status_id == array_search('Pending', $contributionStatus)
+      || $params['prevContribution']->contribution_status_id == array_search('In Progress', $contributionStatus))
       && $params['contribution']->contribution_status_id == array_search('Completed', $contributionStatus)
       && $context == 'changePaymentInstrument') {
       return;
@@ -2763,7 +2819,7 @@ WHERE  contribution_id = %1 ";
 
     if ($context == 'changedStatus') {
       if (($params['prevContribution']->contribution_status_id == array_search('Pending', $contributionStatus)
-        || $params['prevContribution']->contribution_status_id == array_search('In Progress', $contributionStatus)) 
+        || $params['prevContribution']->contribution_status_id == array_search('In Progress', $contributionStatus))
         && ($params['contribution']->contribution_status_id == array_search('Completed', $contributionStatus))) {
         $query = "UPDATE civicrm_financial_item SET status_id = %1 WHERE entity_id = %2 and entity_table = 'civicrm_line_item'";
         $sql = "SELECT id, amount FROM civicrm_financial_item WHERE entity_id = %1 and entity_table = 'civicrm_line_item'";

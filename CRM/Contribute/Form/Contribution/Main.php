@@ -728,7 +728,7 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
         $self->_useForMember
       )
     ) {
-      $lifeMember = CRM_Member_BAO_Membership::getAllContactMembership($self->_userID, FALSE, TRUE);
+      $lifeMember = CRM_Member_BAO_Membership::getAllContactMembership($self->_membershipContactID, FALSE, TRUE);
 
       $membershipOrgDetails = CRM_Member_BAO_MembershipType::getMembershipTypeOrganization();
 
@@ -844,7 +844,11 @@ class CRM_Contribute_Form_Contribution_Main extends CRM_Contribute_Form_Contribu
 
             if (CRM_Utils_Array::value('options', $value)) {
               foreach ($value['options'] as $val) {
-                if (CRM_Utils_Array::value('membership_type_id', $val)) {
+                if (CRM_Utils_Array::value('membership_type_id', $val) && (
+                    ($fields['price_' . $priceId] == $val['id']) ||
+                    (isset($fields['price_' . $priceId]) && !empty($fields['price_' . $priceId][$val['id']]))
+                  )
+                ) {
                   $priceFieldMemTypes[] = $val['membership_type_id'];
                 }
               }

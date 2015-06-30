@@ -155,9 +155,9 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
   /**
    * The contact id of the person for whom membership is being added or renewed based on the cid in the url,
    * checksum, or session
-   * @var unknown_type
+   * @var int
    */
-  protected $_contactID;
+  public $_contactID;
 
   protected $_userID;
 
@@ -190,10 +190,12 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
   /**
    * Function to set variables up before form is built
    *
+   * @throws CRM_Contribution_Exception_InactiveContributionPageException
    * @return void
    * @access public
    */
   public function preProcess() {
+
     $config = CRM_Core_Config::singleton();
     $session = CRM_Core_Session::singleton();
 
@@ -279,10 +281,8 @@ class CRM_Contribute_Form_ContributionBase extends CRM_Core_Form {
 
       CRM_Contribute_BAO_ContributionPage::setValues($this->_id, $this->_values);
 
-      // check if form is active
-      if (!CRM_Utils_Array::value('is_active', $this->_values)) {
-        // form is inactive, die a fatal death
-        CRM_Core_Error::fatal(ts('The page you requested is currently unavailable.'));
+      if (empty($this->_values['is_active'])) {
+        throw new CRM_Contribute_Exception_InactiveContributionPageException(ts('The page you requested is currently unavailable.'), $this->_id);
       }
 
       // also check for billing informatin

@@ -56,6 +56,9 @@ class CRM_Price_BAO_PriceSet extends CRM_Price_DAO_PriceSet {
    * @static
    */
   static function create(&$params) {
+    if(empty($params['id']) && empty($params['name'])) {
+      $params['name'] = CRM_Utils_String::munge($params['title'], '_', 242);
+    }
     $priceSetBAO = new CRM_Price_BAO_PriceSet();
     $priceSetBAO->copyValues($params);
     if (self::eventPriceSetDomainID()) {
@@ -102,17 +105,16 @@ class CRM_Price_BAO_PriceSet extends CRM_Price_DAO_PriceSet {
    *
    * @param string $entity
    *
-   * @return id $priceSetID
+   * @return array $defaultPriceSet default price set
    *
    * @access public
    * @static
    *
    */
   public static function getDefaultPriceSet($entity = 'contribution') {
-    if ($entity == 'contribution') {
-      $entityName = 'default_contribution_amount';
-    }
-    else if ($entity == 'membership') {
+
+    $entityName = 'default_contribution_amount';
+    if ($entity == 'membership') {
       $entityName = 'default_membership_type_amount';
     }
 
@@ -155,8 +157,8 @@ WHERE       ps.name = '{$entityName}'
   /**
    * Return a list of all forms which use this price set.
    *
-   * @param int  $id id of price set
-   * @param str  $simpleReturn - get raw data. Possible values: 'entity', 'table'
+   * @param int $id id of price set
+   * @param bool|string $simpleReturn - get raw data. Possible values: 'entity', 'table'
    *
    * @return array
    */
@@ -377,13 +379,13 @@ WHERE     ct.id = cp.financial_type_id AND
   }
 
   /**
-   * Find a price_set_id associatied with the given option value or  field ID
+   * Find a price_set_id associated with the given option value or  field ID
    *
    * @param array $params (reference) an assoc array of name/value pairs
    *                      array may contain either option id or
    *                      price field id
    *
-   * @return price set id on success, null  otherwise
+   * @return integer|NULL price set id on success, null  otherwise
    * @static
    * @access public
    */
@@ -463,7 +465,6 @@ WHERE     ct.id = cp.financial_type_id AND
   public static function getSetDetail($setID, $required = TRUE, $validOnly = FALSE) {
     // create a new tree
     $setTree = array();
-    $select = $from = $where = $orderBy = '';
 
     $priceFields = array(
       'id',
@@ -548,6 +549,48 @@ WHERE  id = %1";
     return $setTree;
   }
 
+
+  /**
+   * Get the Price Field ID. We call this function when more than one being present would represent an error
+   * starting format derived from current(CRM_Price_BAO_PriceSet::getSetDetail($priceSetId))
+   * @param array $priceSet
+   *
+   * @throws CRM_Core_Exception
+   * @return int
+   */
+  static function getOnlyPriceFieldID(array $priceSet) {
+    if(count($priceSet['fields']) > 1) {
+      throw new CRM_Core_Exception(ts('expected only one price field to be in priceset but multiple are present'));
+    }
+    return (int) implode('_', array_keys($priceSet['fields']));
+  }
+
+  /**
+   * Get the Price Field Value ID. We call this function when more than one being present would represent an error
+   * current(CRM_Price_BAO_PriceSet::getSetDetail($priceSetId))
+   * @param array $priceSet
+   *
+   * @throws CRM_Core_Exception
+   * @return int
+   */
+  static function getOnlyPriceFieldValueID(array $priceSet) {
+    $priceFieldID = self::getOnlyPriceFieldID($priceSet);
+    if(count($priceSet['fields'][$priceFieldID]['options']) > 1) {
+      throw new CRM_Core_Exception(ts('expected only one price field to be in priceset but multiple are present'));
+    }
+    return (int) implode('_', array_keys($priceSet['fields'][$priceFieldID]['options']));
+  }
+
+
+  /**
+   * @param CRM_Core_Form $form
+   * @param $id
+   * @param string $entityTable
+   * @param bool $validOnly
+   * @param null $priceSetId
+   *
+   * @return bool|false|int|null
+   */
   static function initSet(&$form, $id, $entityTable = 'civicrm_event', $validOnly = FALSE, $priceSetId = NULL) {
     if (!$priceSetId) {
       $priceSetId = self::getFor($entityTable, $id);
@@ -658,9 +701,10 @@ WHERE  id = %1";
 
       switch ($field['html_type']) {
         case 'Text':
-          $params["price_{$id}"] = array(key($field['options']) => $params["price_{$id}"]);
+          $firstOption = reset($field['options']);
+          $params["price_{$id}"] = array($firstOption['id'] => $params["price_{$id}"]);
           CRM_Price_BAO_LineItem::format($id, $params, $field, $lineItem);
-          $totalPrice += $lineItem[key($field['options'])]['line_total'];
+          $totalPrice += $lineItem[$firstOption['id']]['line_total'];
           break;
 
         case 'Radio':
@@ -783,12 +827,13 @@ WHERE  id = %1";
   /**
    * Function to build the price set form.
    *
-   * @return None
+   * @param CRM_Core_Form $form
+   *
+   * @return void
    * @access public
    */
   static function buildPriceSet(&$form) {
     $priceSetId = $form->get('priceSetId');
-    $userid = $form->getVar('_userID');
     if (!$priceSetId) {
       return;
     }
@@ -837,6 +882,7 @@ WHERE  id = %1";
       ) {
         $options = CRM_Utils_Array::value('options', $field);
         if ($className == 'CRM_Contribute_Form_Contribution_Main' && $component = 'membership') {
+          $userid = $form->getVar('_membershipContactID');
           $checklifetime = self::checkCurrentMembership($options, $userid);
           if ($checklifetime) {
             $form->assign('ispricelifetime', TRUE);
@@ -916,7 +962,7 @@ WHERE  id = %1";
   /**
    * Get field ids of a price set
    *
-   * @param int id Price Set id
+   * @param int $id Price Set id
    *
    * @return array of the field ids
    *
@@ -1182,7 +1228,7 @@ WHERE       ps.id = %1
     return false;
   }
 
-  /*
+  /**
    * Copy priceSet when event/contibution page is copied
    *
    * @params string $baoName  BAO name

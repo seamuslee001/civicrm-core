@@ -139,7 +139,7 @@ class CRM_Mailing_Form_Group extends CRM_Contact_Form_Task {
         $mailingGroups[$entityTable][$dao->group_type][] = $dao->entity_id;
       }
 
-      $defaults['includeGroups'] = $mailingGroups['civicrm_group']['Include'];
+      $defaults['includeGroups'] = CRM_Utils_Array::value('Include', $mailingGroups['civicrm_group']);
       $defaults['excludeGroups'] = CRM_Utils_Array::value('Exclude', $mailingGroups['civicrm_group']);
 
       if (!empty($mailingGroups['civicrm_mailing'])) {
@@ -210,7 +210,8 @@ class CRM_Mailing_Form_Group extends CRM_Contact_Form_Task {
     $this->addElement('checkbox', 'dedupe_email', ts('Remove duplicate emails?'));
 
     //get the mailing groups.
-    $groups = CRM_Core_PseudoConstant::group('Mailing');
+    $groups = CRM_Core_PseudoConstant::nestedGroup('Mailing');
+ //   asort($groups);
     if ($hiddenMailingGroup) {
       $groups[$hiddenMailingGroup] =
         CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Group', $hiddenMailingGroup, 'title');
@@ -226,12 +227,12 @@ class CRM_Mailing_Form_Group extends CRM_Contact_Form_Task {
 
     //when the context is search add base group's.
     if ($this->_searchBasedMailing) {
-      //get the static groups
-      $staticGroups = CRM_Core_PseudoConstant::staticGroup(FALSE, 'Mailing');
+      //CRM-16600 Include Smart Groups in Unsubscribe list as that matches
+      //all other practices in CiviMail
       $this->add('select', 'baseGroup',
         ts('Unsubscription Group'),
         array(
-          '' => ts('- select -')) + $staticGroups,
+          '' => ts('- select -')) + $groups,
         TRUE
       );
     }

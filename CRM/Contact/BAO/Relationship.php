@@ -263,7 +263,7 @@ class CRM_Contact_BAO_Relationship extends CRM_Contact_DAO_Relationship {
 
     $relationship->free();
 
-    CRM_Utils_Hook::post($hook, 'Relationship', $relationshipId, $relationship);
+    CRM_Utils_Hook::post($hook, 'Relationship', $relationship->id, $relationship);
 
     return $relationship;
   }
@@ -490,7 +490,7 @@ class CRM_Contact_BAO_Relationship extends CRM_Contact_DAO_Relationship {
     $relationship->delete();
     CRM_Core_Session::setStatus(ts('Selected relationship has been deleted successfully.'), ts('Record Deleted'), 'success');
 
-    CRM_Utils_Hook::post('delete', 'Relationship', $relationship->id, $relationship);
+    CRM_Utils_Hook::post('delete', 'Relationship', $id, $relationship);
 
     // delete the recently created Relationship
     $relationshipRecent = array(
@@ -747,7 +747,15 @@ WHERE  relationship_type_id = " . CRM_Utils_Type::escape($type, 'Integer');
     // however, a longer term solution would be to simplify the add, create & api functions
     // to be more standard. It is debatable @ that point whether it's better to call the BAO
     // direct as the api is more tested.
-    civicrm_api3('relationship', 'create', array('id' => $id, 'is_active' => $is_active));
+    $result = civicrm_api('relationship', 'create', array(
+      'id' => $id,
+      'is_active' => $is_active,
+      'version' => 3,
+    ));
+
+    if (is_array($result) && !empty($result['is_error']) && $result['error_message'] != 'Relationship already exists') {
+      throw new CiviCRM_API3_Exception($result['error_message'], CRM_Utils_Array::value('error_code', $result, 'undefined'), $result);
+    }
 
     // call (undocumented possibly deprecated) hook
     CRM_Utils_Hook::enableDisable('CRM_Contact_BAO_Relationship', $id, $is_active);

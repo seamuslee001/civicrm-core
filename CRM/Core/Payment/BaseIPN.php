@@ -69,12 +69,18 @@ class CRM_Core_Payment_BaseIPN {
    * Paypal allows you to resend Instant Payment Notifications if you, for example, moved site
    * and didn't update your IPN URL.
    *
-   * @param array $input interpreted values from the values returned through the IPN
-   * @param array $ids more interpreted values (ids) from the values returned through the IPN
-   * @param array $objects an empty array that will be populated with loaded object
-   * @param boolean $required boolean Return FALSE if the relevant objects don't exist
-   * @param integer $paymentProcessorID Id of the payment processor ID in use
-   * @return boolean
+   * @param array $input
+   *   Interpreted values from the values returned through the IPN.
+   * @param array $ids
+   *   More interpreted values (ids) from the values returned through the IPN.
+   * @param array $objects
+   *   An empty array that will be populated with loaded object.
+   * @param bool $required
+   *   Boolean Return FALSE if the relevant objects don't exist.
+   * @param int $paymentProcessorID
+   *   Id of the payment processor ID in use.
+   *
+   * @return bool
    */
   function validateData(&$input, &$ids, &$objects, $required = TRUE, $paymentProcessorID = NULL) {
 
@@ -82,17 +88,23 @@ class CRM_Core_Payment_BaseIPN {
     $contact = new CRM_Contact_BAO_Contact();
     $contact->id = $ids['contact'];
     if (!$contact->find(TRUE)) {
-      CRM_Core_Error::debug_log_message("Could not find contact record: {$ids['contact']} in IPN request: ".print_r($input, TRUE));
-      echo "Failure: Could not find contact record: {$ids['contact']}<p>";
+      CRM_Core_Error::debug_log_message("Could not find contact record: " . (int) $ids['contact'] . " in IPN request:
+      ". print_r($input, TRUE));
+      echo "Failure: Could not find contact record: " . (int) $ids['contact'] . "<p>";
       return FALSE;
+    }
+
+    if (!isset($input['net_amount']) && !empty($input['total_amount'])) {
+      $input['net_amount'] = (float) $input['total_amount'] - (float) CRM_Utils_Array::value('fee_amount', $input);
     }
 
     // make sure contribution exists and is valid
     $contribution = new CRM_Contribute_BAO_Contribution();
     $contribution->id = $ids['contribution'];
     if (!$contribution->find(TRUE)) {
-      CRM_Core_Error::debug_log_message("Could not find contribution record: {$contribution->id} in IPN request: ".print_r($input, TRUE));
-      echo "Failure: Could not find contribution record for {$contribution->id}<p>";
+      CRM_Core_Error::debug_log_message("Could not find contribution record: " . (int) $contribution->id . " in IPN
+      request: " . print_r($input, TRUE));
+      echo "Failure: Could not find contribution record for " . (int) $contribution->id . "<p>";
       return FALSE;
     }
     $contribution->receive_date = CRM_Utils_Date::isoToMysql($contribution->receive_date);
@@ -102,12 +114,17 @@ class CRM_Core_Payment_BaseIPN {
     if (!$this->loadObjects($input, $ids, $objects, $required, $paymentProcessorID)) {
       return FALSE;
     }
-
+    //the process is that the loadObjects is kind of hacked by loading the objects for the original contribution and then somewhat inconsistently using them for the
+    //current contribution. Here we ensure that the original contribution is available to the complete transaction function
+    //we don't want to fix this in the payment processor classes because we would have to fix all of them - so better to fix somewhere central
+    if (isset($objects['contributionRecur'])) {
+      $objects['first_contribution'] = $objects['contribution'];
+    }
     return TRUE;
   }
 
   /**
-   * Load objects related to contribution
+   * Load objects related to contribution.
    *
    * @input array information from Payment processor
    * @param array $ids
@@ -191,8 +208,9 @@ class CRM_Core_Payment_BaseIPN {
     $contribution->save();
 
     //add lineitems for recurring payments
-    if (CRM_Utils_Array::value('contributionRecur', $objects) && $objects['contributionRecur']->id && $addLineItems) {
-      $this->addrecurLineItems($objects['contributionRecur']->id, $contribution->id, CRM_Core_DAO::$_nullArray);
+
+    if (!empty($objects['contributionRecur']) && $objects['contributionRecur']->id && $addLineItems) {
+      $this->addRecurLineItems($objects['contributionRecur']->id, $contribution);
     }
 
     //copy initial contribution custom fields for recurring contributions
@@ -262,8 +280,8 @@ class CRM_Core_Payment_BaseIPN {
     $contribution->save();
 
     //add lineitems for recurring payments
-    if (CRM_Utils_Array::value('contributionRecur', $objects) && $objects['contributionRecur']->id && $addLineItems) {
-      $this->addrecurLineItems($objects['contributionRecur']->id, $contribution->id, CRM_Core_DAO::$_nullArray);
+    if (!empty($objects['contributionRecur']) && $objects['contributionRecur']->id && $addLineItems) {
+      $this->addRecurLineItems($objects['contributionRecur']->id, $contribution);
     }
 
     //copy initial contribution custom fields for recurring contributions
@@ -306,6 +324,9 @@ class CRM_Core_Payment_BaseIPN {
 
   function completeTransaction(&$input, &$ids, &$objects, &$transaction, $recur = FALSE) {
     $contribution = &$objects['contribution'];
+
+    $primaryContributionID = isset($contribution->id) ? $contribution->id : $objects['first_contribution']->id;
+
     $memberships = &$objects['membership'];
     if (is_numeric($memberships)) {
       $memberships = array($objects['membership']);
@@ -316,6 +337,9 @@ class CRM_Core_Payment_BaseIPN {
     $recurContrib = &$objects['contributionRecur'];
 
     $values = array();
+    if (isset($input['is_email_receipt'])) {
+      $values['is_email_receipt'] = $input['is_email_receipt'];
+    }
     $source = NULL;
     if ($input['component'] == 'contribute') {
       if ($contribution->contribution_page_id) {
@@ -331,8 +355,9 @@ class CRM_Core_Payment_BaseIPN {
         $values['receipt_from_name'] = $domainValues[0];
         $values['receipt_from_email'] = $domainValues[1];
       }
-      if($recurContrib && $recurContrib->id){
+      if($recurContrib && $recurContrib->id && !isset($input['is_email_receipt'])){
         //CRM-13273 - is_email_receipt setting on recurring contribution should take precedence over contribution page setting
+        // but CRM-16124 if $input['is_email_receipt'] is set then that should not be overridden.
         $values['is_email_receipt'] = $recurContrib->is_email_receipt;
       }
 
@@ -371,6 +396,7 @@ LIMIT 1;";
             }
             // else fall back to using current membership type
             $dao->free();
+            $num_terms = $contribution->getNumTermsByContributionAndMembershipType($membership->membership_type_id, $primaryContributionID);
 
             if ($currentMembership) {
               /*
@@ -380,13 +406,16 @@ LIMIT 1;";
                */
               CRM_Member_BAO_Membership::fixMembershipStatusBeforeRenew($currentMembership, $changeToday);
 
+              // @todo - we should pass membership_type_id instead of null here but not
+              // adding as not sure of testing
               $dates = CRM_Member_BAO_MembershipType::getRenewalDatesForMembershipType($membership->id,
-                $changeToday
+                $changeToday, NULL, $num_terms
               );
+
               $dates['join_date'] = CRM_Utils_Date::customFormat($currentMembership['join_date'], $format);
             }
             else {
-              $dates = CRM_Member_BAO_MembershipType::getDatesForMembershipType($membership->membership_type_id);
+              $dates = CRM_Member_BAO_MembershipType::getDatesForMembershipType($membership->membership_type_id, NULL, NULL, NULL, $num_terms);
             }
 
             //get the status for membership.
@@ -394,7 +423,9 @@ LIMIT 1;";
               $dates['end_date'],
               $dates['join_date'],
               'today',
-              TRUE
+              TRUE,
+              $membership->membership_type_id,
+              (array) $membership
             );
 
             $formatedParams = array('status_id' => CRM_Utils_Array::value('id', $calcStatus, 2),
@@ -490,15 +521,45 @@ LIMIT 1;";
     ) {
       $input['net_amount'] = $input['amount'] - $input['fee_amount'];
     }
-    $addLineItems = FALSE;
+    // This complete transaction function is being overloaded to create new contributions too.
+    // here we record if it is a new contribution.
+    // @todo separate the 2 more appropriately.
+    $isNewContribution = FALSE;
     if (empty($contribution->id)) {
-      $addLineItems = TRUE;
+      $isNewContribution = TRUE;
+      if (!empty($input['amount']) &&  $input['amount'] != $contribution->total_amount) {
+        $contribution->total_amount = $input['amount'];
+        // The BAO does this stuff but we are actually kinda bypassing it here (bad code! go sit in the corner)
+        // so we have to handle net_amount in this (naughty) code.
+        if (isset($input['fee_amount']) && is_numeric($input['fee_amount'])) {
+          $contribution->fee_amount = $input['fee_amount'];
+        }
+        $contribution->net_amount = $contribution->total_amount - $contribution->fee_amount;
+      }
+      if (!empty($input['campaign_id'])) {
+        $contribution->campaign_id = $input['campaign_id'];
+      }
     }
 
-    $contribution->contribution_status_id = 1;
+    $contributionStatuses = CRM_Core_PseudoConstant::get('CRM_Contribute_DAO_Contribution', 'contribution_status_id', array(
+        'labelColumn' => 'name',
+        'flip' => 1,
+      ));
+
+    // @todo this section should call the api  in order to have hooks called &
+    // because all this 'messiness' setting variables could be avoided
+    // by letting the api resolve pseudoconstants & copy set values and format dates.
+    $contribution->contribution_status_id = $contributionStatuses['Completed'];
     $contribution->is_test = $input['is_test'];
-    $contribution->fee_amount = CRM_Utils_Array::value('fee_amount', $input, 0);
-    $contribution->net_amount = CRM_Utils_Array::value('net_amount', $input, 0);
+
+    // CRM-15960 If we don't have a value we 'want' for the amounts, leave it to the BAO to sort out.
+    if (isset($input['net_amount'])) {
+      $contribution->fee_amount = CRM_Utils_Array::value('fee_amount', $input, 0);
+    }
+    if (isset($input['net_amount'])) {
+      $contribution->net_amount = $input['net_amount'];
+    }
+
     $contribution->trxn_id = $input['trxn_id'];
     $contribution->receive_date = CRM_Utils_Date::isoToMysql($contribution->receive_date);
     $contribution->thankyou_date = CRM_Utils_Date::isoToMysql($contribution->thankyou_date);
@@ -513,15 +574,40 @@ LIMIT 1;";
       $contribution->payment_instrument_id = $input['payment_instrument_id'];
     }
 
-    if ($contribution->id) {
+    if (!empty($contribution->id)) {
       $contributionId['id'] = $contribution->id;
       $input['prevContribution'] = CRM_Contribute_BAO_Contribution::getValues($contributionId, CRM_Core_DAO::$_nullArray, CRM_Core_DAO::$_nullArray);
     }
+
     $contribution->save();
 
-    //add lineitems for recurring payments
-    if (CRM_Utils_Array::value('contributionRecur', $objects) && $objects['contributionRecur']->id && $addLineItems) {
-      $this->addrecurLineItems($objects['contributionRecur']->id, $contribution->id, $input);
+    //add line items for recurring payments
+    if (!empty($contribution->contribution_recur_id)) {
+      if ($isNewContribution) {
+        $input['line_item'] = $this->addRecurLineItems($contribution->contribution_recur_id, $contribution);
+      }
+      else {
+        // this is just to prevent e-notices when we call recordFinancialAccounts - per comments on that line - intention is somewhat unclear
+        $input['line_item'] = array();
+      }
+      if (!empty($memberships) && $primaryContributionID != $contribution->id) {
+          foreach ($memberships as $membership) {
+            try {
+              $membershipPayment = array(
+                'membership_id' => $membership->id,
+                'contribution_id' => $contribution->id
+              );
+              if (!civicrm_api3('membership_payment', 'getcount', $membershipPayment)) {
+                civicrm_api3('membership_payment', 'create', $membershipPayment);
+              }
+            }
+            catch (CiviCRM_API3_Exception $e) {
+              echo $e->getMessage();
+              // we are catching & ignoring errors as an extra precaution since lost IPNs may be more serious that lost membership_payment data
+              // this fn is unit-tested so risk of changes elsewhere breaking it are otherwise mitigated
+            }
+          }
+      }
     }
 
     //copy initial contribution custom fields for recurring contributions
@@ -548,7 +634,7 @@ LIMIT 1;";
     if ($contribution->id) {
       $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
       if ((empty($input['prevContribution']) && $paymentProcessorId) || (!$input['prevContribution']->is_pay_later &&
--      $input['prevContribution']->contribution_status_id == array_search('Pending', $contributionStatuses))) {
+       $input['prevContribution']->contribution_status_id == array_search('Pending', $contributionStatuses))) {
        $input['payment_processor'] = $paymentProcessorId;
       }
       $input['contribution_status_id'] = array_search('Completed', $contributionStatuses);
@@ -562,7 +648,7 @@ LIMIT 1;";
         $input['skipLineItem'] = 1;
       }
       //@todo writing a unit test I was unable to create a scenario where this line did not fatal on second
-      // and subsequent payments. In this case the line items are created at $this->addrecurLineItems
+      // and subsequent payments. In this case the line items are created at $this->addRecurLineItems
       // and since the contribution is saved prior to this line there is always a contribution-id,
       // however there is never a prevContribution (which appears to mean original contribution not previous
       // contribution - or preUpdateContributionObject most accurately)
@@ -570,6 +656,7 @@ LIMIT 1;";
       // to mean "are we updating an exisitng pending contribution"
       //I was able to make the unit test complete as fataling here doesn't prevent
       // the contribution being created - but activities would not be created or emails sent
+
       CRM_Contribute_BAO_Contribution::recordFinancialAccounts($input, NULL);
     }
 
@@ -639,8 +726,8 @@ LIMIT 1;";
       $userID = $session->get('userID');
       if (!empty($userID)) {
         list($userName, $userEmail) = CRM_Contact_BAO_Contact_Location::getEmailDetails($userID);
-        $values['receipt_from_email'] = $userEmail;
-        $values['receipt_from_name'] = $userName;
+        $values['receipt_from_email'] = CRM_Utils_Array::value('receipt_from_email', $input, $userEmail);
+        $values['receipt_from_name'] = CRM_Utils_Array::value('receipt_from_name', $input, $userName);
       }
     }
     return $contribution->composeMessageArray($input, $ids, $values, $recur, $returnMessageText);
@@ -829,28 +916,41 @@ LIMIT 1;";
     );
   }
 
-  function addrecurLineItems($recurId, $contributionId, &$input) {
-    $lineSets = $lineItems = array();
+  /**
+   * @param $recurId
+   * @param $contribution
+   *
+   * @internal param $contributionId
+   *
+   * @return array
+   */
+  function addRecurLineItems($recurId, $contribution) {
+    $lineSets = array();
 
-    //Get the first contribution id with recur id
-    if ($recurId) {
-      $contriID = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $recurId, 'id', 'contribution_recur_id');
-      $lineItems = CRM_Price_BAO_LineItem::getLineItems($contriID, 'contribution');
-      if (!empty($lineItems)) {
-        foreach ($lineItems as $key => $value) {
-          $pricesetID = new CRM_Price_DAO_PriceField();
-          $pricesetID->id = $value['price_field_id'];
-          $pricesetID->find(TRUE);
-          $lineSets[$pricesetID->price_set_id][] = $value;
+    $originalContributionID = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_Contribution', $recurId, 'id', 'contribution_recur_id');
+    $lineItems = CRM_Price_BAO_LineItem::getLineItemsByContributionID($originalContributionID);
+    if (count($lineItems) == 1) {
+      foreach ($lineItems as $index => $lineItem) {
+        if ($lineItem['line_total'] != $contribution->total_amount) {
+          // We are dealing with a changed amount! Per CRM-16397 we can work out what to do with these
+          // if there is only one line item, and the UI should prevent this situation for those with more than one.
+          $lineItems[$index]['line_total'] = $contribution->total_amount;
+          $lineItems[$index]['unit_price'] = round($contribution->total_amount / $lineItems[$index]['qty'], 2);
         }
       }
-      if (!empty($input)) {
-        $input['line_item'] = $lineSets;
-      }
-      else {
-        CRM_Price_BAO_LineItem::processPriceSet($contributionId, $lineSets);
+    }
+    if (!empty($lineItems)) {
+      foreach ($lineItems as $key => $value) {
+        $priceField = new CRM_Price_DAO_PriceField();
+        $priceField->id = $value['price_field_id'];
+        $priceField->find(TRUE);
+        $lineSets[$priceField->price_set_id][] = $value;
       }
     }
+    else {
+      CRM_Price_BAO_LineItem::processPriceSet($contribution->id, $lineSets, $contribution);
+    }
+    return $lineSets;
   }
 
   // function to copy custom data of the

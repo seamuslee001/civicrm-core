@@ -41,6 +41,7 @@ class CRM_Case_Page_AJAX {
    * Retrieve unclosed cases.
    */
   static function unclosedCases() {
+    header('Content-Type: text/plain');
     $criteria = explode('-', CRM_Utils_Type::escape(CRM_Utils_Array::value('s', $_GET), 'String'));
 
     $limit = NULL;
@@ -70,13 +71,12 @@ class CRM_Case_Page_AJAX {
 
   function processCaseTags() {
 
-    $caseId = CRM_Utils_Type::escape($_POST['case_id'], 'Integer');
+    $caseId = CRM_Utils_Type::escape($_POST['case_id'], 'Positive');
     $tags = CRM_Utils_Type::escape($_POST['tag'], 'String');
     $tagList = $_POST['taglist'];
 
-    if (empty($caseId)) {
-      echo 'false';
-      CRM_Utils_System::civiExit();
+    if (!CRM_Case_BAO_Case::accessCase($caseId)) {
+      CRM_Utils_System::permissionDenied();
     }
 
     $tagIds = array();
@@ -129,7 +129,12 @@ class CRM_Case_Page_AJAX {
   }
 
   function caseDetails() {
-    $caseId    = CRM_Utils_Type::escape($_GET['caseId'], 'Integer');
+    $caseId = CRM_Utils_Type::escape($_GET['caseId'], 'Positive');
+
+    if (!CRM_Case_BAO_Case::accessCase($caseId, FALSE)) {
+      CRM_Utils_System::permissionDenied();
+    }
+
     $sql       = "SELECT * FROM civicrm_case where id = %1";
     $dao       = CRM_Core_DAO::executeQuery($sql, array(1 => array($caseId, 'Integer')));
 
@@ -154,8 +159,12 @@ class CRM_Case_Page_AJAX {
   }
 
   function addClient() {
-    $caseId = CRM_Utils_Type::escape($_POST['caseID'], 'Integer');
-    $contactId = CRM_Utils_Type::escape($_POST['contactID'], 'Integer');
+    $caseId = CRM_Utils_Type::escape($_POST['caseID'], 'Positive');
+    $contactId = CRM_Utils_Type::escape($_POST['contactID'], 'Positive');
+
+    if (!$contactId || !CRM_Case_BAO_Case::accessCase($caseId)) {
+      CRM_Utils_System::permissionDenied();
+    }
 
     $params = array(
       'case_id' => $caseId,
@@ -186,16 +195,19 @@ class CRM_Case_Page_AJAX {
     );
 
     CRM_Case_BAO_Case::processCaseActivity($caseParams);
-    echo json_encode(TRUE);
-    CRM_Utils_System::civiExit();
+    CRM_Utils_JSON::output(TRUE);
   }
 
   /**
    * Function to delete relationships specific to case and relationship type
    */
   static function deleteCaseRoles() {
-    $caseId  = CRM_Utils_Type::escape($_POST['case_id'], 'Integer');
-    $relType = CRM_Utils_Type::escape($_POST['rel_type'], 'Integer');
+    $caseId  = CRM_Utils_Type::escape($_POST['case_id'], 'Positive');
+    $relType = CRM_Utils_Type::escape($_POST['rel_type'], 'Positive');
+
+    if (!$relType || !CRM_Case_BAO_Case::accessCase($caseId)) {
+      CRM_Utils_System::permissionDenied();
+    }
 
     $sql = "DELETE FROM civicrm_relationship WHERE case_id={$caseId} AND relationship_type_id={$relType}";
     CRM_Core_DAO::executeQuery($sql);

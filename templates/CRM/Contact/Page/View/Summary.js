@@ -6,6 +6,20 @@
     beforeSubmit: function(arr, $form, options) {
       addCiviOverlay($form);
     },
+    // CRM-15939: Custom Rich Text Editor fields aren't save from in-line editing.
+    beforeSerialize: function(form, options) {
+      // Copied from 4.5 patch
+      if (window.CKEDITOR && window.CKEDITOR.instances) {
+        $.each(CKEDITOR.instances, function() {
+          this.updateElement && this.updateElement();
+        });
+      }
+      if (window.tinyMCE && tinyMCE.editors) {
+        $.each(tinyMCE.editors, function() {
+          this.save();
+        });
+      }
+    },
     success: requestHandler,
     error: errorHandler
   };
@@ -43,6 +57,7 @@
 
   function requestHandler(response) {
     var o = $('div.crm-inline-edit.form');
+    $('form', o).ajaxFormUnbind();
 
     if (response.status == 'save' || response.status == 'cancel') {
       o.trigger('crmFormSuccess', [response]);
@@ -99,7 +114,6 @@
     }
     else {
       // Handle formRule error
-      $('form', o).ajaxForm('destroy');
       $('.crm-container-snippet', o).replaceWith(response.content);
       $('form', o).validate(CRM.validate.params);
       $('form', o).ajaxForm(ajaxFormParams);
@@ -120,6 +134,18 @@
       var o = $(event.target);
       var data = o.data('edit-params');
       var errorTag = o.find('.update_oplock_ts');
+      $('#crm-notification-container')
+        .off('.opLock')
+        .on('click.opLock', '.crm-lock-button-save', function(e){
+          CRM.closeAlertByChild(this);
+          $(form).find('input[name=oplock_ts]').val(errorTag.attr('data:update_oplock_ts'));
+          $(form).find('.form-submit.default').first().click();
+          return false;
+        })
+        .on('click.opLock', '.crm-lock-button-reload', function(){
+          window.location.reload();
+          return false;
+        });
       if (errorTag.length > 0) {
         $('<span>')
           .addClass('crm-lock-button')
@@ -127,23 +153,13 @@
 
         var buttonContainer = o.find('.crm-lock-button');
         $('<button>')
-          .addClass('crm-button')
+          .addClass('crm-button crm-lock-button-save')
           .text(options.saveAnywayLabel)
-          .click(function() {
-            $(form).find('input[name=oplock_ts]').val(errorTag.attr('data:update_oplock_ts'));
-            errorTag.parent().hide();
-            $(this).closest('form').find('.form-submit.default').first().click();
-            return false;
-          })
           .appendTo(buttonContainer)
           ;
         $('<button>')
-          .addClass('crm-button')
+          .addClass('crm-button crm-lock-button-reload')
           .text(options.reloadLabel)
-          .click(function() {
-            window.location.reload();
-            return false;
-          })
           .appendTo(buttonContainer)
           ;
       }
@@ -211,6 +227,7 @@
       // Inline edit form cancel button
       .on('click', '.crm-inline-edit :submit[name$=cancel]', function() {
         var container = $(this).closest('.crm-inline-edit.form');
+        $('form', container).ajaxFormUnbind();
         $('.inline-edit-hidden-content', container).nextAll().remove();
         $('.inline-edit-hidden-content > *:first-child', container).unwrap();
         container.removeClass('form');

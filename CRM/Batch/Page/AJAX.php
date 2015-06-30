@@ -88,7 +88,7 @@ class CRM_Batch_Page_AJAX {
 
     if ($context != 'financialBatch') {
       // data entry status batches
-      $params['status_id'] = 3;
+      $params['status_id'] = CRM_Core_OptionGroup::getValue('batch_status','Data Entry', 'name');
     }
 
     $params['context'] = $context;
@@ -110,6 +110,7 @@ class CRM_Batch_Page_AJAX {
     if ($context == 'financialBatch') {
       $selectorElements = array_merge(array('check'), $selectorElements);
     }
+    header('Content-Type: application/json');
     echo CRM_Utils_JSON::encodeDataTableSelector($batches, $sEcho, $iTotal, $iFilteredTotal, $selectorElements);
     CRM_Utils_System::civiExit();
   }

@@ -455,6 +455,9 @@ class CRM_Utils_Date {
 
   /**
    * converts the date/datetime from ISO format to MySQL format
+   * Note that until CRM-14986/ 4.4.7 this was required whenever the pattern $dao->find(TRUE): $dao->save(); was
+   * used to update an object with a date field was used. The DAO now checks for a '-' in date field strings
+   * & runs this function if the - appears - meaning it is likely redundant in the form & BAO layers
    *
    * @param string $iso  date/datetime in ISO format
    *
@@ -965,6 +968,13 @@ class CRM_Utils_Date {
             unset($to);
             break;
 
+          case 'greater_previous':
+            $from['d'] = 31;
+            $from['M'] = 12;
+            $from['Y'] = $now['year'] - 1;
+            unset($to);
+            break;
+
           case 'ending':
             $to['d'] = $now['mday'];
             $to['M'] = $now['mon'];
@@ -1067,6 +1077,7 @@ class CRM_Utils_Date {
             $difference = 2;
             $quarter    = ceil($now['mon'] / 3);
             $quarter    = $quarter - $difference;
+            $subtractYear = 0;  
             if ($quarter <= 0) {
               $subtractYear = 1;
               $quarter += 4;
@@ -1117,6 +1128,7 @@ class CRM_Utils_Date {
 
           case 'earlier':
             $quarter = ceil($now['mon'] / 3) - 1;
+            $subtractYear = 0;  
             if ($quarter <= 0) {
               $subtractYear = 1;
               $quarter += 4;
@@ -1132,6 +1144,19 @@ class CRM_Utils_Date {
             $from['d'] = 1;
             $from['M'] = (3 * $quarter) - 2;
             $from['Y'] = $now['year'];
+            unset($to);
+            break;
+ 
+          case 'greater_previous':
+            $quarter = ceil($now['mon'] / 3) - 1;
+            $subtractYear    = 0;            
+            if ($quarter <= 0) {
+              $subtractYear = 1;
+              $quarter += 4;
+            }
+            $from['M'] = 3 * $quarter;
+            $from['Y'] = $from['Y'] = $now['year'] - $subtractYear;
+            $from['d'] = date('t', mktime(0, 0, 0, $from['M'], 1, $from['Y']));
             unset($to);
             break;
 
@@ -1239,6 +1264,21 @@ class CRM_Utils_Date {
             unset($to);
             break;
 
+          case 'greater_previous':
+            //from end of past month
+            if ($now['mon'] == 1) {
+              $from['M'] = 12;
+              $from['Y'] = $now['year'] - 1;
+            }
+            else {
+              $from['M'] = $now['mon'] - 1;
+              $from['Y'] = $now['year'];
+            }
+
+            $from['d'] = date('t', mktime(0, 0, 0, $from['M'], 1, $from['Y']));
+            unset($to);
+            break;
+
           case 'ending':
             $to['d'] = $now['mday'];
             $to['M'] = $now['mon'];
@@ -1309,6 +1349,14 @@ class CRM_Utils_Date {
             $from['M'] = $now['mon'];
             $from['Y'] = $now['year'];
             $from      = self::intervalAdd('day', -1 * ($now['wday']), $from);
+            unset($to);
+            break;
+
+          case 'greater_previous':
+            $from['d'] = $now['mday'];
+            $from['M'] = $now['mon'];
+            $from['Y'] = $now['year'];
+            $from     = self::intervalAdd('day', -1 * ($now['wday']) - 1, $from);
             unset($to);
             break;
 

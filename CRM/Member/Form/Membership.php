@@ -359,7 +359,7 @@ class CRM_Member_Form_Membership extends CRM_Member_Form {
         }
       }
     }
-    
+
     if (CRM_Utils_Array::value('record_contribution', $defaults) && !$this->_mode) {
       $contributionParams = array('id' => $defaults['record_contribution']);
       $contributionIds = array();
@@ -930,7 +930,7 @@ WHERE   id IN ( ' . implode(' , ', array_keys($membershipType)) . ' )';
     if (!$priceSetId && $self->_mode && !CRM_Utils_Array::value('financial_type_id', $params)) {
       $errors['financial_type_id'] = ts('Please enter the financial Type.');
     }
-    
+
     if (CRM_Utils_Array::value('record_contribution', $params) && !CRM_Utils_Array::value('payment_instrument_id', $params)) {
       $errors['payment_instrument_id'] = ts('Paid By is a required field.');
     }
@@ -1007,7 +1007,9 @@ WHERE   id IN ( ' . implode(' , ', array_keys($membershipType)) . ' )';
             $endDate,
             $joinDate,
             'today',
-            TRUE
+            TRUE,
+            $memType,
+            $params
           );
           if (empty($calcStatus)) {
             $url = CRM_Utils_System::url('civicrm/admin/member/membershipStatus', 'reset=1&action=browse');
@@ -1383,6 +1385,7 @@ WHERE   id IN ( ' . implode(' , ', array_keys($membershipType)) . ' )';
       $this->_params['ip_address'] = CRM_Utils_System::ipAddress();
       $this->_params['amount'] = $params['total_amount'];
       $this->_params['currencyID'] = $config->defaultCurrency;
+      $this->_params['description'] = ts('Office Credit Card Membership Contribution');
       $this->_params['payment_action'] = 'Sale';
       $this->_params['invoiceID'] = md5(uniqid(rand(), TRUE));
       $this->_params['financial_type_id'] = $params['financial_type_id'];
@@ -1427,7 +1430,7 @@ WHERE   id IN ( ' . implode(' , ', array_keys($membershipType)) . ' )';
           TRUE,
           FALSE
         );
-        $paymentParams['contactID'] = $contactID;
+        $paymentParams['contactID'] = $this->_contactID;
         $paymentParams['contributionID'] = $contribution->id;
         $paymentParams['contributionTypeID'] = $contribution->financial_type_id;
         $paymentParams['contributionPageID'] = $contribution->contribution_page_id;

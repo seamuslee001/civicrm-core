@@ -199,48 +199,58 @@ abstract class CRM_Core_Payment {
         'processor_name' => @$_GET['processor_name'],
         'processor_id' => @$_GET['processor_id'],
         'mode' => @$_GET['mode'],
+        'q' => @$_GET['q'],
       )
     );
   }
 
   /**
-   * Payment callback handler
+   * Payment callback handler. The processor_name or processor_id is passed in.
+   * Note that processor_id is more reliable as one site may have more than one instance of a
+   * processor & ideally the processor will be validating the results
    * Load requested payment processor and call that processor's handle<$method> method
    *
    * @public
    */
   static function handlePaymentMethod($method, $params = array( )) {
     if (!isset($params['processor_id']) && !isset($params['processor_name'])) {
-      CRM_Core_Error::fatal("Either 'processor_id' or 'processor_name' param is required for payment callback");
+      $q = explode('/', CRM_Utils_Array::value('q', $params, ''));
+      $lastParam = array_pop($q);
+      if (is_numeric($lastParam)) {
+        $params['processor_id'] = $_GET['processor_id'] = $lastParam;
+      }
+      else {
+        throw new CRM_Core_Exception("Either 'processor_id' or 'processor_name' param is required for payment callback");
+      }
     }
 
-    // Query db for processor ..
-    $mode = @$params['mode'];
+    $mode = CRM_Utils_Array::value('mode', $params);
+    $is_test = ($mode == 'test') ? 1 : 0;
 
     $sql = "SELECT ppt.class_name, ppt.name as processor_name, pp.id AS processor_id
               FROM civicrm_payment_processor_type ppt
         INNER JOIN civicrm_payment_processor pp
                 ON pp.payment_processor_type_id = ppt.id
-               AND pp.is_active
-               AND pp.is_test = %1";
-    $args[1] = array($mode == 'test' ? 1 : 0, 'Integer');
+               AND pp.is_active";
 
     if (isset($params['processor_id'])) {
       $sql .= " WHERE pp.id = %2";
       $args[2] = array($params['processor_id'], 'Integer');
-      $notfound = "No active instances of payment processor ID#'{$params['processor_id']}'  were found.";
+      $notFound = "No active instances of payment processor ID#'{$params['processor_id']}'  were found.";
     }
     else {
-      $sql .= " WHERE ppt.name = %2";
+      // This is called when processor_name is passed - passing processor_id instead is recommended.
+      $sql .= " WHERE ppt.name = %2 AND pp.is_test = %1";
+      $args[1] = array($is_test, 'Integer');
       $args[2] = array($params['processor_name'], 'String');
-      $notfound = "No active instances of the '{$params['processor_name']}' payment processor were found.";
+      $notFound = "No active instances of the '{$params['processor_name']}' payment processor were found.";
     }
 
     $dao = CRM_Core_DAO::executeQuery($sql, $args);
 
     // Check whether we found anything at all ..
     if (!$dao->N) {
-      CRM_Core_Error::fatal($notfound);
+      CRM_Core_Error::fatal($notFound);
     }
 
     $method = 'handle' . $method;
@@ -253,15 +263,12 @@ abstract class CRM_Core_Payment {
       // Check pp is extension
       $ext = CRM_Extension_System::singleton()->getMapper();
       if ($ext->isExtensionKey($dao->class_name)) {
-        $extension_instance_found = TRUE;
         $paymentClass = $ext->keyToClass($dao->class_name, 'payment');
         require_once $ext->classToPath($paymentClass);
       }
       else {
-        // Legacy instance - but there may also be an extension instance, so
-        // continue on to the next instance and check that one. We'll raise an
-        // error later on if none are found.
-        continue;
+        // Legacy or extension as module instance
+        $paymentClass = 'CRM_Core_' . $dao->class_name;
       }
 
       $paymentProcessor = CRM_Financial_BAO_PaymentProcessor::getPayment($dao->processor_id, $mode);
@@ -278,13 +285,14 @@ abstract class CRM_Core_Payment {
       if (!method_exists($processorInstance, $method) ||
         !is_callable(array($processorInstance, $method))
       ) {
-        // No? This will be the case in all instances, so let's just die now
-        // and not prolong the agony.
-        CRM_Core_Error::fatal("Payment processor does not implement a '$method' method");
+        // on the off chance there is a double implementation of this processor we should keep looking for another
+        // note that passing processor_id is more reliable & we should work to deprecate processor_name
+        continue;
       }
 
       // Everything, it seems, is ok - execute pp callback handler
       $processorInstance->$method();
+      $extension_instance_found = TRUE;
     }
 
     if (!$extension_instance_found) CRM_Core_Error::fatal(
@@ -311,59 +319,72 @@ abstract class CRM_Core_Payment {
   }
 
   function subscriptionURL($entityID = NULL, $entity = NULL, $action = 'cancel') {
-    if ($action == 'cancel') {
-      $url = 'civicrm/contribute/unsubscribe';
+    // Set URL
+    switch ($action) {
+      case 'cancel' :
+        $url = 'civicrm/contribute/unsubscribe';
+        break;
+
+      case 'billing' :
+        //in notify mode don't return the update billing url
+        if (!$this->isSupported('updateSubscriptionBillingInfo')) {
+          return NULL;
+        }
+        $url = 'civicrm/contribute/updatebilling';
+        break;
+
+      case 'update' :
+        $url = 'civicrm/contribute/updaterecur';
+        break;
     }
-    elseif ($action == 'billing') {
-      //in notify mode don't return the update billing url
-      if ($this->_paymentProcessor['billing_mode'] == self::BILLING_MODE_NOTIFY) {
-        return NULL;
-      }
-      $url = 'civicrm/contribute/updatebilling';
-    }
-    elseif ($action == 'update') {
-      $url = 'civicrm/contribute/updaterecur';
-    }
+
     $session       = CRM_Core_Session::singleton();
     $userId        = $session->get('userID');
-    $checksumValue = "";
+    $contactID     = 0;
+    $checksumValue = '';
+    $entityArg     = '';
 
-    if ($entityID && $entity == 'membership') {
-      if (!$userId) {
-        $contactID     = CRM_Core_DAO::getFieldValue("CRM_Member_DAO_Membership", $entityID, "contact_id");
-        $checksumValue = CRM_Contact_BAO_Contact_Utils::generateChecksum($contactID, NULL, 'inf');
-        $checksumValue = "&cs={$checksumValue}";
-      }
-      return CRM_Utils_System::url($url, "reset=1&mid={$entityID}{$checksumValue}", TRUE, NULL, FALSE, TRUE);
-    }
+    // Find related Contact
+    if ($entityID) {
+      switch ($entity) {
+        case 'membership' :
+          $contactID = CRM_Core_DAO::getFieldValue("CRM_Member_DAO_Membership", $entityID, "contact_id");
+          $entityArg = 'mid';
+          break;
 
-    if ($entityID && $entity == 'contribution') {
-      if (!$userId) {
-        $contactID     = CRM_Core_DAO::getFieldValue("CRM_Contribute_DAO_Contribution", $entityID, "contact_id");
-        $checksumValue = CRM_Contact_BAO_Contact_Utils::generateChecksum($contactID, NULL, 'inf');
-        $checksumValue = "&cs={$checksumValue}";
-      }
-      return CRM_Utils_System::url($url, "reset=1&coid={$entityID}{$checksumValue}", TRUE, NULL, FALSE, TRUE);
-    }
+        case 'contribution' :
+          $contactID = CRM_Core_DAO::getFieldValue("CRM_Contribute_DAO_Contribution", $entityID, "contact_id");
+          $entityArg = 'coid';
+          break;
 
-    if ($entityID && $entity == 'recur') {
-      if (!$userId) {
-        $sql = "
+        case 'recur' :
+          $sql = "
     SELECT con.contact_id
       FROM civicrm_contribution_recur rec
 INNER JOIN civicrm_contribution con ON ( con.contribution_recur_id = rec.id )
      WHERE rec.id = %1
   GROUP BY rec.id";
-        $contactID     = CRM_Core_DAO::singleValueQuery($sql, array(1 => array($entityID, 'Integer')));
-        $checksumValue = CRM_Contact_BAO_Contact_Utils::generateChecksum($contactID, NULL, 'inf');
-        $checksumValue = "&cs={$checksumValue}";
+          $contactID = CRM_Core_DAO::singleValueQuery($sql, array(1 => array($entityID, 'Integer')));
+          $entityArg = 'crid';
+          break;
       }
-      return CRM_Utils_System::url($url, "reset=1&crid={$entityID}{$checksumValue}", TRUE, NULL, FALSE, TRUE);
     }
 
+    // Add entity arguments
+    if ($entityArg != '') {
+      // Add checksum argument
+      if ($contactID != 0 && $userId != $contactID) {
+        $checksumValue = '&cs=' . CRM_Contact_BAO_Contact_Utils::generateChecksum($contactID, NULL, 'inf');
+      }
+      return CRM_Utils_System::url($url, "reset=1&{$entityArg}={$entityID}{$checksumValue}", TRUE, NULL, FALSE, TRUE);
+    }
+
+    // Else login URL
     if ($this->isSupported('accountLoginURL')) {
       return $this->accountLoginURL();
     }
+
+    // Else default
     return $this->_paymentProcessor['url_recur'];
   }
 
@@ -373,8 +394,9 @@ INNER JOIN civicrm_contribution con ON ( con.contribution_recur_id = rec.id )
    */
   static function allowBackofficeCreditCard($template = NULL, $variableName = 'newCredit') {
     $newCredit = FALSE;
+    // restrict to type=1 (credit card) payment processor payment_types and only include billing mode types 1 and 3
     $processors = CRM_Core_PseudoConstant::paymentProcessor(FALSE, FALSE,
-      "billing_mode IN ( 1, 3 )"
+      "billing_mode IN ( 1, 3 ) AND payment_type = 1"
     );
     if (count($processors) > 0) {
       $newCredit = TRUE;

@@ -187,7 +187,7 @@ class CRM_Core_Payment_AuthorizeNet extends CRM_Core_Payment {
     if (($this->_mode == 'test') || $response_fields[6] == 0) {
       $query             = "SELECT MAX(trxn_id) FROM civicrm_contribution WHERE trxn_id RLIKE 'test[0-9]+'";
       $p                 = array();
-      $trxn_id           = strval(CRM_Core_Dao::singleValueQuery($query, $p));
+      $trxn_id           = strval(CRM_Core_DAO::singleValueQuery($query, $p));
       $trxn_id           = str_replace('test', '', $trxn_id);
       $trxn_id           = intval($trxn_id) + 1;
       $params['trxn_id'] = sprintf('test%08d', $trxn_id);
@@ -726,7 +726,11 @@ class CRM_Core_Payment_AuthorizeNet extends CRM_Core_Payment {
     $template->assign('paymentKey', $this->_getParam('paymentKey'));
 
     $template->assign('subscriptionId', $params['subscriptionId']);
-    $template->assign('totalOccurrences', $params['installments']);
+
+    // for open ended subscription totalOccurrences has to be 9999
+    $installments = empty($params['installments']) ? 9999 : $params['installments'];
+    $template->assign('totalOccurrences', $installments);
+
     $template->assign('amount', $params['amount']);
 
     $arbXML = $template->fetch('CRM/Contribute/Form/Contribution/AuthorizeNetARB.tpl');

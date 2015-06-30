@@ -196,7 +196,7 @@ class CRM_Report_Form_Pledge_Summary extends CRM_Report_Form {
             'title' => ts(' Group'),
             'operatorType' => CRM_Report_Form::OP_MULTISELECT,
             'group' => TRUE,
-            'options' => CRM_Core_PseudoConstant::group(),
+            'options' => CRM_Core_PseudoConstant::nestedGroup(),
           ),
         ),
       ),
@@ -393,7 +393,6 @@ class CRM_Report_Form_Pledge_Summary extends CRM_Report_Form {
     $entryFound   = FALSE;
     $checkList    = array();
     $display_flag = $prev_cid = $cid = 0;
-    crm_Core_error::Debug('$rows', $rows);
     foreach ($rows as $rowNum => $row) {
 
       // convert display name to links

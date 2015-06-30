@@ -36,12 +36,7 @@ require_once 'CiviTest/CiviUnitTestCase.php';
 
 class api_v3_ACLPermissionTest extends CiviUnitTestCase {
   protected $_apiversion = 3;
-  protected $_params;
-  protected $hookClass = NULL;
   public $DBResetRequired = FALSE;
-
-
-
   protected $_entity;
 
   function setUp() {
@@ -49,7 +44,6 @@ class api_v3_ACLPermissionTest extends CiviUnitTestCase {
     $baoObj = new CRM_Core_DAO();
     $baoObj->createTestObject('CRM_Pledge_BAO_Pledge', array(), 1, 0);
     $baoObj->createTestObject('CRM_Core_BAO_Phone', array(), 1, 0);
-    $this->hookClass = CRM_Utils_Hook::singleton();
     $config = CRM_Core_Config::singleton();
     $config->userPermissionClass->permissions = array();
   }
@@ -62,6 +56,14 @@ class api_v3_ACLPermissionTest extends CiviUnitTestCase {
     CRM_Utils_Hook::singleton()->reset();
     $tablesToTruncate = array(
       'civicrm_contact',
+      'civicrm_group_contact',
+      'civicrm_group',
+      'civicrm_acl',
+      'civicrm_acl_cache',
+      'civicrm_acl_entity_role',
+      'civicrm_acl_contact_cache',
+      'civicrm_contribution',
+      'civicrm_participant',
     );
     $this->quickCleanup($tablesToTruncate);
     $config = CRM_Core_Config::singleton();
@@ -97,7 +99,7 @@ class api_v3_ACLPermissionTest extends CiviUnitTestCase {
    * Function tests that deleted contacts are not returned
    */
   function testContactGetPermissionHookNoDeleted() {
-    $result = $this->callAPISuccess('contact', 'create', array('id' => 2, 'is_deleted' => 1));
+    $this->callAPISuccess('contact', 'create', array('id' => 2, 'is_deleted' => 1));
     $this->hookClass->setHook('civicrm_aclWhereClause', array($this, 'aclWhereHookAllResults'));
     $result = $this->callAPISuccess('contact', 'get', array(
       'check_permissions' => 1,
@@ -229,6 +231,94 @@ class api_v3_ACLPermissionTest extends CiviUnitTestCase {
     );
   }
 
+  function setupCoreACL() {
+    $this->createLoggedInUser();
+    $this->_permissionedDisabledGroup = $this->groupCreate(array('title' => 'pick-me-disabled', 'is_active' => 0, 'name' => 'pick-me-disabled'));
+    $this->_permissionedGroup = $this->groupCreate(array('title' => 'pick-me-active', 'is_active' => 1, 'name' => 'pick-me-active'));
+    $this->setupACL();
+  }
+  /**
+   * @dataProvider entities
+   * confirm that without check permissions we still get 2 contacts returned
+   */
+  function testEntitiesGetHookLimitingHookNoCheck($entity) {
+    CRM_Core_Config::singleton()->userPermissionClass->permissions = array();
+    $this->setUpEntities($entity);
+    $this->hookClass->setHook('civicrm_aclWhereClause', array($this, 'aclWhereHookNoResults'));
+    $result = $this->callAPISuccess($entity, 'get', array(
+      'check_permissions' => 0,
+      'return' => 'contact_id',
+    ));
+    $this->assertEquals(2, $result['count']);
+  }
+
+  /**
+   * @dataProvider entities
+   * confirm that without check permissions we still get 2 entities returned
+   */
+  function testEntitiesGetCoreACLLimitingHookNoCheck($entity) {
+    $this->setupCoreACL();
+    //CRM_Core_Config::singleton()->userPermissionClass->permissions = array();
+    $this->setUpEntities($entity);
+    $this->hookClass->setHook('civicrm_aclWhereClause', array($this, 'aclWhereHookNoResults'));
+    $result = $this->callAPISuccess($entity, 'get', array(
+      'check_permissions' => 0,
+      'return' => 'contact_id',
+    ));
+    $this->assertEquals(2, $result['count']);
+  }
+  /**
+   * @dataProvider entities
+   * confirm that with check permissions we don't get entities
+   */
+  function testEntitiesGetCoreACLLimitingCheck($entity) {
+    $this->markTestIncomplete('this does not work in 4.4 but can be enabled in 4.5 or a security release of 4.4 including the important security fix CRM-14877');
+    $this->setupCoreACL();
+    $this->setUpEntities($entity);
+    $result = $this->callAPISuccess($entity, 'get', array(
+      'check_permissions' => 1,
+      'return' => 'contact_id',
+    ));
+    $this->assertEquals(0, $result['count']);
+  }
+
+
+  /**
+   * @dataProvider entities
+   * Function tests that an empty where hook returns no results
+   */
+  function testEntityGetNoResultsHook($entity) {
+    $this->markTestIncomplete('hook acls only work with contacts so far');
+    CRM_Core_Config::singleton()->userPermissionClass->permissions = array();
+    $this->setUpEntities($entity);
+    $this->hookClass->setHook('civicrm_aclWhereClause', array($this, 'aclWhereHookNoResults'));
+    $result = $this->callAPISuccess($entity, 'get', array(
+      'check_permission' => 1,
+    ));
+    $this->assertEquals(0, $result['count']);
+  }
+
+  /**
+   * @return array
+   */
+  public static function entities() {
+    return array(array('contribution'), array('participant'),);// @todo array('pledge' => 'pledge')
+  }
+
+  /**
+   * Create 2 entities
+   */
+  public function setUpEntities($entity) {
+    $baoObj = new CRM_Core_DAO();
+    $baoObj->createTestObject( _civicrm_api3_get_BAO($entity), array(), 2, 0);
+    CRM_Core_Config::singleton()->userPermissionClass->permissions = array(
+      'access CiviCRM',
+      'access CiviContribute',
+      'access CiviEvent',
+      'view event participants',
+    );
+  }
+
   /**
    * no results returned
    */
@@ -248,7 +338,4 @@ class api_v3_ACLPermissionTest extends CiviUnitTestCase {
   function aclWhereOnlySecond($type, &$tables, &$whereTables, &$contactID, &$where) {
     $where = " contact_a.id > 1";
   }
-
-
 }
-

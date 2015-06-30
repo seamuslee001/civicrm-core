@@ -495,6 +495,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
                             $cfTable.default_value,
                             $cfTable.options_per_line, $cfTable.text_length,
                             $cfTable.custom_group_id,
+                            $cfTable.is_required,
                             $cgTable.extends, $cfTable.is_search_range,
                             $cgTable.extends_entity_column_value,
                             $cgTable.extends_entity_column_id,
@@ -569,6 +570,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
           $fields[$dao->id]['option_group_id'] = $dao->option_group_id;
           $fields[$dao->id]['date_format'] = $dao->date_format;
           $fields[$dao->id]['time_format'] = $dao->time_format;
+          $fields[$dao->id]['is_required'] = $dao->is_required;
         }
 
         CRM_Core_BAO_Cache::setItem($fields,
@@ -636,6 +638,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
         'import' => 1,
         'custom_field_id' => $id,
         'options_per_line' => CRM_Utils_Array::value('options_per_line', $values),
+        'text_length' => CRM_Utils_Array::value('text_length', $values, 255),
         'data_type' => CRM_Utils_Array::value('data_type', $values),
         'html_type' => CRM_Utils_Array::value('html_type', $values),
         'is_search_range' => CRM_Utils_Array::value('is_search_range', $values),
@@ -1021,10 +1024,15 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
           $qf->addRule($elementName, ts('Select a valid contact for %1.', array(1 => $label)), 'validContact', $actualElementValue);
         }
         else {
-          $customUrls[$elementName] = CRM_Utils_System::url('civicrm/ajax/auto',
-            "reset=1&ogid={$field->option_group_id}&cfid={$field->id}",
-            FALSE, NULL, FALSE
+          $signer = new CRM_Utils_Signer(CRM_Core_Key::privateKey(), array('cfid','ogid','sigts'));
+          $signParams = array(
+            'reset' => 1,
+            'sigts' => CRM_Utils_Time::getTimeRaw(),
+            'ogid' => $field->option_group_id,
+            'cfid' => $field->id,
           );
+          $signParams['sig'] = $signer->sign($signParams);
+          $customUrls[$elementName] = CRM_Utils_System::url('civicrm/ajax/auto', $signParams, FALSE, NULL, FALSE);
           $qf->addRule($elementName, ts('Select a valid value for %1.', array(1 => $label)),
             'autocomplete', array(
               'fieldID' => $field->id,
@@ -1541,6 +1549,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
    * @param int     $entityId            entity id (contribution, membership...)
    * @param boolean $inline              consider inline custom groups only
    * @param boolean $checkPermission     if false, do not include permissioning clause
+   * @param boolean $includeViewOnly     if true, fields marked 'View Only' are included. Required for APIv3.
    *
    * @return array $customFormatted formatted custom field array
    * @static
@@ -1549,7 +1558,8 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
     $customFieldExtend, $customValueId = NULL,
     $entityId = NULL,
     $inline = FALSE,
-    $checkPermission = TRUE
+    $checkPermission = TRUE,
+    $includeViewOnly = FALSE
   ) {
     //get the custom fields for the entity
     //subtype and basic type
@@ -1582,7 +1592,7 @@ class CRM_Core_BAO_CustomField extends CRM_Core_DAO_CustomField {
     }
 
     // return if field is a 'code' field
-    if (CRM_Utils_Array::value('is_view', $customFields[$customFieldId])) {
+    if (!$includeViewOnly && !empty($customFields[$customFieldId]['is_view'])) {
       return;
     }
 

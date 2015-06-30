@@ -60,26 +60,29 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
    * @param array  $params (reference ) an assoc array of name/value pairs
    * @param array $ids    the array that holds all the db ids
    *
-   * @return object CRM_Member_BAO_Membership object
+   * @return CRM_Member_BAO_Membership object
    * @access public
    * @static
    */
-  static function &add(&$params, &$ids) {
-
-    if (CRM_Utils_Array::value('membership', $ids)) {
-      CRM_Utils_Hook::pre('edit', 'Membership', $ids['membership'], $params);
-      $oldStatus         = NULL;
-      $oldType           = NULL;
-      $membershipObj     = new CRM_Member_DAO_Membership();
-      $membershipObj->id = $ids['membership'];
+  public static function add(&$params, $ids = array()) {
+    $oldStatus = $oldType = NULL;
+    $params['id'] = CRM_Utils_Array::value('id', $params, CRM_Utils_Array::value('membership', $ids));
+    if ($params['id']) {
+      CRM_Utils_Hook::pre('edit', 'Membership', $params['id'], $params);
+    }
+    else {
+      CRM_Utils_Hook::pre('create', 'Membership', NULL, $params);
+    }
+    $id = $params['id'];
+    // we do this after the hooks are called in case it has been altered
+    if ($id) {
+      $membershipObj = new CRM_Member_DAO_Membership();
+      $membershipObj->id = $id;
       $membershipObj->find();
       while ($membershipObj->fetch()) {
         $oldStatus = $membershipObj->status_id;
         $oldType = $membershipObj->membership_type_id;
       }
-    }
-    else {
-      CRM_Utils_Hook::pre('create', 'Membership', NULL, $params);
     }
 
     if (array_key_exists('is_override', $params) && !$params['is_override']) {
@@ -88,7 +91,7 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
 
     $membership = new CRM_Member_BAO_Membership();
     $membership->copyValues($params);
-    $membership->id = CRM_Utils_Array::value('membership', $ids);
+    $membership->id = $id;
 
     $membership->save();
     $membership->free();
@@ -136,7 +139,7 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
     // reset the group contact cache since smart groups might be affected due to this
     CRM_Contact_BAO_GroupContactCache::remove();
 
-    if (CRM_Utils_Array::value('membership', $ids)) {
+    if ($id) {
       if ($membership->status_id != $oldStatus) {
         $allStatus = CRM_Member_BAO_Membership::buildOptions('status_id', 'get');
         $activityParam = array(
@@ -251,7 +254,7 @@ class CRM_Member_BAO_Membership extends CRM_Member_DAO_Membership {
       }
 
       $calcStatus = CRM_Member_BAO_MembershipStatus::getMembershipStatusByDate($start_date, $end_date, $join_date,
-        'today', $excludeIsAdmin
+        'today', $excludeIsAdmin, CRM_Utils_Array::value('membership_type_id', $params), $params
       );
       if (empty($calcStatus)) {
         // Redirect the form in case of error
@@ -1411,7 +1414,8 @@ AND civicrm_membership.is_test = %2";
         $membership = self::renewMembership($contactID, $membershipTypeID,
           $isTest, $form, NULL,
           CRM_Utils_Array::value('cms_contactID', $membershipParams),
-          $customFieldsFormatted, CRM_Utils_Array::value('types_terms', $membershipParams, 1)
+          $customFieldsFormatted, CRM_Utils_Array::value('types_terms', $membershipParams, 1),
+          (CRM_Utils_Array::value('contribution_status_id', $result) == 2 ? TRUE : FALSE)
         );
         if (isset($contribution[$index])) {
           //insert payment record
@@ -1436,14 +1440,7 @@ AND civicrm_membership.is_test = %2";
         }
       }
       $message = ts('Payment Processor Error message') . ': ' . implode('<br/>', $message);
-      // Redirect the form in case of error
-      // @todo this redirect in the BAO layer is really bad & should be moved to the form layer
-      // however since we have no idea how (if) this is triggered we can't safely move / remove it
-      $errorParams = array(
-        'legacy_redirect_path' => 'civicrm/contribute/transact',
-        'legacy_redirect_query' => "_qf_Main_display=true&qfKey={$form->_params['qfKey']}",
-      );
-      throw new CRM_Core_Exception($message, 0, $errorParams);
+      throw new CRM_Core_Exception($message);
     }
 
     // CRM-7851
@@ -1515,7 +1512,8 @@ AND civicrm_membership.is_test = %2";
     $changeToday = NULL,
     $modifiedID = NULL,
     $customFieldsFormatted = NULL,
-    $numRenewTerms = 1
+    $numRenewTerms = 1,
+    $paymentConfirmed = FALSE
   ) {
     $statusFormat = '%Y-%m-%d';
     $format       = '%Y%m%d';
@@ -1544,6 +1542,9 @@ AND civicrm_membership.is_test = %2";
       ) {
         $pending = TRUE;
       }
+    }
+    if ($paymentConfirmed) {
+      $pending = FALSE;
     }
 
     //decide status here, if needed.
@@ -1735,7 +1736,10 @@ AND civicrm_membership.is_test = %2";
           CRM_Utils_Date::customFormat($dates['join_date'],
             $statusFormat
           ),
-          'today', TRUE
+          'today',
+          TRUE,
+          $membershipTypeID,
+          $memParams
         );
         $updateStatusId = CRM_Utils_Array::value('id', $status);
       }
@@ -1832,7 +1836,9 @@ AND civicrm_membership.is_test = %2";
       CRM_Utils_Array::value('end_date', $currentMembership),
       CRM_Utils_Array::value('join_date', $currentMembership),
       $today,
-      TRUE
+      TRUE,
+      $currentMembership['membership_type_id'],
+      $currentMembership
     );
 
     if (empty($status) ||
@@ -1996,8 +2002,13 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
    * @static
    * @access public
    */
-  static function createRelatedMemberships(&$params, &$dao) {
+  static function createRelatedMemberships(&$params, &$dao, $reset = FALSE) {
     static $relatedContactIds = array();
+    if ($reset) {
+      // not sure why a static var is in use here - we need a way to reset it from the test suite
+      $relatedContactIds = array();
+      return;
+    }
 
     $membership = new CRM_Member_DAO_Membership();
     $membership->id = $dao->id;

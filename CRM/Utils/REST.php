@@ -248,7 +248,8 @@ class CRM_Utils_REST {
     if (!empty($r)) {
       $q = $r;
     }
-    if (!empty($q)) {
+    $entity = CRM_Utils_array::value('entity', $requestParams);
+    if ( empty($entity) && !empty($q)) {
       $args = explode('/', $q);
       // If the function isn't in the civicrm namespace, reject the request.
       if ($args[0] != 'civicrm') {
@@ -305,12 +306,10 @@ class CRM_Utils_REST {
       return self::error("User API key invalid");
     }
 
-    return self::process($args);
+    return self::process($args, self::buildParamList());
   }
 
-  static function process(&$args, $restInterface = TRUE) {
-    $params = &self::buildParamList();
-
+  static function process(&$args, $params) {
     $params['check_permissions'] = TRUE;
     $fnName = $apiFile = NULL;
     // clean up all function / class names. they should be alphanumeric and _ only
@@ -384,8 +383,7 @@ class CRM_Utils_REST {
     if (array_key_exists('json', $requestParams) &&  $requestParams['json'][0] == "{") {
       $params = json_decode($requestParams['json'], TRUE);
       if($params === NULL) {
-        echo json_encode(array('is_error' => 1, 'error_message', 'Unable to decode supplied JSON.'));
-        CRM_Utils_System::civiExit();
+        CRM_Utils_JSON::output(array('is_error' => 1, 'error_message', 'Unable to decode supplied JSON.'));
       }
     }
     foreach ($requestParams as $n => $v) {
@@ -501,16 +499,13 @@ class CRM_Utils_REST {
           'reason' => 'CSRF suspected',
         )
       );
-      echo json_encode($error);
-      CRM_Utils_System::civiExit();
+      CRM_Utils_JSON::output($error);
     }
     if (empty($requestParams['entity'])) {
-      echo json_encode(civicrm_api3_create_error('missing entity param'));
-      CRM_Utils_System::civiExit();
+      CRM_Utils_JSON::output(civicrm_api3_create_error('missing entity param'));
     }
     if (empty($requestParams['entity'])) {
-      echo json_encode(civicrm_api3_create_error('missing entity entity'));
-      CRM_Utils_System::civiExit();
+      CRM_Utils_JSON::output(civicrm_api3_create_error('missing entity entity'));
     }
     if (!empty($requestParams['json'])) {
       $params = json_decode($requestParams['json'], TRUE);
@@ -518,8 +513,7 @@ class CRM_Utils_REST {
     $entity = CRM_Utils_String::munge(CRM_Utils_Array::value('entity', $requestParams));
     $action = CRM_Utils_String::munge(CRM_Utils_Array::value('action', $requestParams));
     if (!is_array($params)) {
-      echo json_encode(array('is_error' => 1, 'error_message', 'invalid json format: ?{"param_with_double_quote":"value"}'));
-      CRM_Utils_System::civiExit();
+      CRM_Utils_JSON::output(array('is_error' => 1, 'error_message', 'invalid json format: ?{"param_with_double_quote":"value"}'));
     }
 
     $params['check_permissions'] = TRUE;
@@ -552,7 +546,7 @@ class CRM_Utils_REST {
       )
     ) {
       require_once 'api/v3/utils.php';
-      $error = civicrm_api3_create_error("SECURITY ALERT: Ajax requests can only be issued by javascript clients, eg. CRM.api().",
+      $error = civicrm_api3_create_error("SECURITY ALERT: Ajax requests can only be issued by javascript clients, eg. CRM.api3().",
         array(
           'IP' => $_SERVER['REMOTE_ADDR'],
           'level' => 'security',
@@ -560,8 +554,7 @@ class CRM_Utils_REST {
           'reason' => 'CSRF suspected',
         )
       );
-      echo json_encode($error);
-      CRM_Utils_System::civiExit();
+      CRM_Utils_JSON::output($error);
     }
 
     $q = CRM_Utils_Array::value('fnName', $requestParams);
@@ -587,11 +580,34 @@ class CRM_Utils_REST {
       return self::error('Unknown function invocation.');
     }
 
-    $result = self::process($args, FALSE);
+    // Support for multiple api calls
+    if (isset($entity) && $entity === 'api3') {
+      $result = self::processMultiple();
+    }
+    else {
+      $result = self::process($args, self::buildParamList());
+    }
 
     echo self::output($result);
 
     CRM_Utils_System::civiExit();
+  }
+
+  /**
+   * Callback for multiple ajax api calls from CRM.api3()
+   * @return array
+   */
+  static function processMultiple() {
+    $output = array();
+    foreach (json_decode($_REQUEST['json'], TRUE) as $key => $call) {
+      $args = array(
+        'civicrm',
+        $call[0],
+        $call[1],
+      );
+      $output[$key] = self::process($args, CRM_Utils_Array::value(2, $call, array()));
+    }
+    return $output;
   }
 
   /**

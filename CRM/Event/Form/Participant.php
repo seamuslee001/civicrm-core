@@ -194,6 +194,12 @@ class CRM_Event_Form_Participant extends CRM_Contact_Form_Task {
    * array of participant role custom data
    */
   public $_participantRoleIds = array();
+  
+  /**
+   * @todo add explanatory note about this
+   * @var null
+   */
+  public $_onlinePendingContributionId = NULL;
 
   /**
    * Function to set variables up before form is built
@@ -222,7 +228,10 @@ class CRM_Event_Form_Participant extends CRM_Contact_Form_Task {
     // check the current path, if search based, then dont get participantID
     // CRM-5792
     $path = CRM_Utils_System::currentPath();
-    if (strpos($path, 'civicrm/contact/search') === 0) {
+    if (
+      strpos($path, 'civicrm/contact/search') === 0 ||
+      strpos($path, 'civicrm/group/search') === 0
+      ) {
       $this->_id = NULL;
     }
     else {
@@ -529,10 +538,7 @@ SELECT civicrm_custom_group.name as name,
       CRM_Event_BAO_Participant::getValues($params, $defaults, $ids);
       $sep = CRM_Core_DAO::VALUE_SEPARATOR;
       if ($defaults[$this->_id]['role_id']) {
-        foreach (explode($sep, $defaults[$this->_id]['role_id']) as $k => $v) {
-          $defaults[$this->_id]["role_id[{$v}]"] = 1;
-        }
-        unset($defaults[$this->_id]['role_id']);
+        $roleIDs = explode($sep, $defaults[$this->_id]['role_id']);
       }
       $this->_contactId = $defaults[$this->_id]['contact_id'];
       $this->_statusId = $defaults[$this->_id]['participant_status_id'];
@@ -574,7 +580,7 @@ SELECT civicrm_custom_group.name as name,
       if (CRM_Utils_Array::value('event_id', $defaults[$this->_id])) {
         $contributionTypeId = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event',
           $defaults[$this->_id]['event_id'],
-          'financial_type_id' 
+          'financial_type_id'
         );
         if ($contributionTypeId) {
           $defaults[$this->_id]['financial_type_id'] = $contributionTypeId;
@@ -635,14 +641,38 @@ SELECT civicrm_custom_group.name as name,
     if (CRM_Utils_Array::value('participant_role_id', $defaults[$this->_id])) {
       $roleIDs = explode($sep, $defaults[$this->_id]['participant_role_id']);
     }
-    if (isset($roleIDs)) {
-      $this->assign('roleID', $roleIDs);
-    }
+
     if (isset($_POST['event_id'])) {
       $eventID = $_POST['event_id'];
-      if ($eventID) {
-        $this->_eventTypeId = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $eventID, 'event_type_id', 'id');
+    }
+
+    if($this->_eID) {
+      $eventID = $this->_eID;
+      //@todo - rationalise the $this->_eID with $POST['event_id'],  $this->_eid is set when eid=x is in the url
+      $roleID = CRM_Core_DAO::getFieldValue(
+        'CRM_Event_DAO_Event',
+        $this->_eID,
+        'default_role_id'
+      );
+      if(empty($roleIDs)) {
+        $roleIDs = (array) $defaults[$this->_id]['participant_role_id'] = $roleID;
       }
+      $defaults[$this->_id]['event_id'] = $eventID;
+    }
+    if (!empty($eventID)) {
+      $this->_eventTypeId = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $eventID, 'event_type_id', 'id');
+    }
+    //these should take precedence so we state them last
+    $urlRoleIDS = CRM_Utils_Request::retrieve('roles', 'String');
+    if($urlRoleIDS) {
+      $roleIDs = explode(',', $urlRoleIDS);
+    }
+    if (isset($roleIDs)) {
+      foreach ($roleIDs as $roleID) {
+        $defaults[$this->_id]["role_id[{$roleID}]"] = 1;
+      }
+      unset($defaults[$this->_id]['role_id']);
+      $this->assign('roleID', $roleIDs);
     }
 
     if (isset($eventID)) {
@@ -749,17 +779,22 @@ SELECT civicrm_custom_group.name as name,
     $this->add('hidden', 'past_event');
 
     $events = array();
-    if ( $this->_eID ) {
-      $eventEndDate = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $this->_eID,'end_date');
+    $pastval = 0;
+
+    if ($this->_eID) {
+      $eventEndDate = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_Event', $this->_eID, 'end_date');
+      $pastval = 1;
     }
-    $this->assign('past', 0);
+    else {
+      $pastval = $this->getElementValue('past_event');
+    }
+    $this->assign('past', $pastval);
+
     if ($this->_action & CRM_Core_Action::UPDATE) {
       $events = CRM_Event_BAO_Event::getEvents(1, FALSE, FALSE);
     }
-    elseif ($this->getElementValue('past_event') || (isset($eventEndDate) && (CRM_Utils_Date::currentDBDate() > CRM_Utils_Date::processDate($eventEndDate)))) {
-      $pastval = $this->getElementValue('past_event');
+    elseif ($pastval || (isset($eventEndDate) && (CRM_Utils_Date::currentDBDate() > CRM_Utils_Date::processDate($eventEndDate)))) {
       $events = CRM_Event_BAO_Event::getEvents($pastval);
-      $this->assign('past', $pastval);
     }
     else {
       $events = CRM_Event_BAO_Event::getEvents();
@@ -1304,7 +1339,9 @@ loadCampaign( {$this->_eID}, {$eventCampaigns} );
 
       $payment = CRM_Core_Payment::singleton($this->_mode, $this->_paymentProcessor, $this);
 
-      $result = &$payment->doDirectPayment($paymentParams);
+      // CRM-15622: fix for incorrect contribution.fee_amount
+      $paymentParams['fee_amount'] = NULL;
+      $result = $payment->doDirectPayment($paymentParams);
 
       if (is_a($result, 'CRM_Core_Error')) {
         CRM_Core_Error::displaySessionError($result);
@@ -1725,6 +1762,7 @@ loadCampaign( {$this->_eID}, {$eventCampaigns} );
           $sent[] = $contactID;
           foreach ($participants as $ids => $values) {
             if ($values->contact_id == $contactID) {
+              $values->details = CRM_Utils_Array::value('receipt_text', $params);
               CRM_Activity_BAO_Activity::addActivity($values, 'Email');
               break;
             }

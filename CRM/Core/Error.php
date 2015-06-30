@@ -106,7 +106,7 @@ class CRM_Core_Error extends PEAR_ErrorStack {
     $this->setDefaultCallback(array($this, 'handlePES'));
   }
 
-  function getMessages(&$error, $separator = '<br />') {
+  static public function getMessages(&$error, $separator = '<br />') {
     if (is_a($error, 'CRM_Core_Error')) {
       $errors = $error->getErrors();
       $message = array();
@@ -119,7 +119,7 @@ class CRM_Core_Error extends PEAR_ErrorStack {
     return NULL;
   }
 
-  function displaySessionError(&$error, $separator = '<br />') {
+  static function displaySessionError(&$error, $separator = '<br />') {
     $message = self::getMessages($error, $separator);
     if ($message) {
       $status = ts("Payment Processor Error message") . "{$separator} $message";
@@ -351,6 +351,11 @@ class CRM_Core_Error extends PEAR_ErrorStack {
    * @acess public
    */
   static function handleUnhandledException($exception) {
+    try {
+      CRM_Utils_Hook::unhandledException($exception);
+    } catch (Exception $other) {
+      // if the exception-handler generates an exception, then that sucks! oh, well. carry on.
+    }
     $config = CRM_Core_Config::singleton();
     $vars = array(
       'message' => $exception->getMessage(),
@@ -533,7 +538,7 @@ class CRM_Core_Error extends PEAR_ErrorStack {
 
     if ($config->userFrameworkLogging) {
       if ($config->userSystem->is_drupal and function_exists('watchdog')) {
-        watchdog('civicrm', $message, NULL, WATCHDOG_DEBUG);
+        watchdog('civicrm', '%message', array('%message' => $message), WATCHDOG_DEBUG);
       }
     }
 
@@ -614,40 +619,42 @@ class CRM_Core_Error extends PEAR_ErrorStack {
       $fnName = CRM_Utils_Array::value('function', $trace);
       $className = array_key_exists('class', $trace) ? ($trace['class'] . $trace['type']) : '';
 
-      // do now show args for a few password related functions
+      // Do not show args for a few password related functions
       $skipArgs = ($className == 'DB::' && $fnName == 'connect') ? TRUE : FALSE;
 
-      foreach ($trace['args'] as $arg) {
-        if (! $showArgs || $skipArgs) {
-          $args[] = '(' . gettype($arg) . ')';
-          continue;
-        }
-        switch ($type = gettype($arg)) {
-          case 'boolean':
-            $args[] = $arg ? 'TRUE' : 'FALSE';
-            break;
-          case 'integer':
-          case 'double':
-            $args[] = $arg;
-            break;
-          case 'string':
-            $args[] = '"' . CRM_Utils_String::ellipsify(addcslashes((string) $arg, "\r\n\t\""), $maxArgLen). '"';
-            break;
-          case 'array':
-            $args[] = '(Array:'.count($arg).')';
-            break;
-          case 'object':
-            $args[] = 'Object(' . get_class($arg) . ')';
-            break;
-          case 'resource':
-            $args[] = 'Resource';
-            break;
-          case 'NULL':
-            $args[] = 'NULL';
-            break;
-          default:
-            $args[] = "($type)";
-            break;
+      if (!empty($trace['args'])) {
+        foreach ($trace['args'] as $arg) {
+          if (! $showArgs || $skipArgs) {
+            $args[] = '(' . gettype($arg) . ')';
+            continue;
+          }
+          switch ($type = gettype($arg)) {
+            case 'boolean':
+              $args[] = $arg ? 'TRUE' : 'FALSE';
+              break;
+            case 'integer':
+            case 'double':
+              $args[] = $arg;
+              break;
+            case 'string':
+              $args[] = '"' . CRM_Utils_String::ellipsify(addcslashes((string) $arg, "\r\n\t\""), $maxArgLen). '"';
+              break;
+            case 'array':
+              $args[] = '(Array:'.count($arg).')';
+              break;
+            case 'object':
+              $args[] = 'Object(' . get_class($arg) . ')';
+              break;
+            case 'resource':
+              $args[] = 'Resource';
+              break;
+            case 'NULL':
+              $args[] = 'NULL';
+              break;
+            default:
+              $args[] = "($type)";
+              break;
+          }
         }
       }
 

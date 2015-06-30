@@ -589,6 +589,15 @@ VALUES (%1, %2, %3, %4, %5, %6, %7)
     $returnProperties = $mailing->getReturnProperties();
     $params           = $targetParams = $deliveredParams = array();
     $count            = 0;
+    
+    /**
+     * CRM-15702: Sending bulk sms to contacts without e-mail addres fails.
+     * Solution is to skip checking for on hold
+     */
+    $skipOnHold = true; //do include a statement to check wether e-mail address is on hold
+    if ($mailing->sms_provider_id) {
+      $skipOnHold = false; //do not include a statement to check wether e-mail address is on hold
+    }
 
     foreach ($fields as $key => $field) {
       $params[] = $field['contact_id'];
@@ -597,7 +606,7 @@ VALUES (%1, %2, %3, %4, %5, %6, %7)
     $details = CRM_Utils_Token::getTokenDetails(
       $params,
       $returnProperties,
-      TRUE, TRUE, NULL,
+      $skipOnHold, TRUE, NULL,
       $mailing->getFlattenedTokens(),
       get_class($this),
       $this->id
@@ -656,16 +665,16 @@ VALUES (%1, %2, %3, %4, %5, %6, %7)
         CRM_Core_Error::setCallback();
       }
 
-      // FIXME: for now we skipping bounce handling for sms
       if (is_a($result, 'PEAR_Error') && !$mailing->sms_provider_id) {
         // CRM-9191
         $message = $result->getMessage();
-        if (strpos($message,
-            'Failed to write to socket'
-          ) !== FALSE) {
+        if (
+          strpos($message, 'Failed to write to socket') !== FALSE ||
+          strpos($message, 'Failed to set sender') !== FALSE
+        ) {
           // lets log this message and code
           $code = $result->getCode();
-          CRM_Core_Error::debug_log_message("SMTP Socket Error. Message: $message, Code: $code");
+          CRM_Core_Error::debug_log_message("SMTP Socket Error or failed to set sender error. Message: $message, Code: $code");
 
           // these are socket write errors which most likely means smtp connection errors
           // lets skip them
@@ -698,6 +707,13 @@ VALUES (%1, %2, %3, %4, %5, %6, %7)
           CRM_Mailing_BAO_BouncePattern::match($result->getMessage())
         );
         CRM_Mailing_Event_BAO_Bounce::create($params);
+      }
+      elseif (is_a($result, 'PEAR_Error') && $mailing->sms_provider_id) {
+        // Handle SMS errors: CRM-15426
+        $job_id = intval($this->id);
+        $mailing_id = intval($mailing->id);
+        CRM_Core_Error::debug_log_message("Failed to send SMS message. Vars: mailing_id: ${mailing_id}, job_id: ${job_id}. Error message follows.");
+        CRM_Core_Error::debug_log_message($result->getMessage());
       }
       else {
         /* Register the delivery event */

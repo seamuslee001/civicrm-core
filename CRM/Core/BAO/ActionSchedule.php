@@ -735,7 +735,7 @@ WHERE reminder.action_schedule_id = %1 AND reminder.action_date_time IS NULL
         CRM_Core_BAO_ActionLog::create($logParams);
 
         // insert activity log record if needed
-        if ($actionSchedule->record_activity) {
+        if ($actionSchedule->record_activity && !$isError) {
           $activityParams = array(
             'subject' => $actionSchedule->title,
             'details' => $actionSchedule->body_html,
@@ -747,7 +747,7 @@ WHERE reminder.action_schedule_id = %1 AND reminder.action_date_time IS NULL
             'activity_type_id' => $activityTypeID,
             'source_record_id' => $dao->entityID,
           );
-          $activity = CRM_Activity_BAO_Activity::create($activityParams);
+          CRM_Activity_BAO_Activity::create($activityParams);
         }
       }
 
@@ -775,6 +775,7 @@ WHERE reminder.action_schedule_id = %1 AND reminder.action_date_time IS NULL
       // 'limit to' option
       $select = $join = $where = $limitWhere = array();
       $limitTo = $actionSchedule->limit_to;
+      $isSendToAdditionalContacts = (!is_null($limitTo) && $limitTo == 0 && (!empty($actionSchedule->group_id) || !empty($actionSchedule->recipient_manual))) ? TRUE : FALSE;
       $value = explode(CRM_Core_DAO::VALUE_SEPARATOR,
         trim($actionSchedule->entity_value, CRM_Core_DAO::VALUE_SEPARATOR)
       );
@@ -1017,8 +1018,7 @@ LEFT JOIN {$reminderJoinClause}
 {$whereClause} {$limitWhereClause} AND {$dateClause} {$notINClause}
 ";
       CRM_Core_DAO::executeQuery($query, array(1 => array($actionSchedule->id, 'Integer')));
-
-      if ($limitTo == 0) {
+      if ($isSendToAdditionalContacts) {
         $additionWhere = ' WHERE ';
         if ($actionSchedule->start_action_date) {
           $additionWhere = $whereClause . ' AND ';
@@ -1078,11 +1078,17 @@ GROUP BY c.id
         $havingClause = "HAVING TIMEDIFF({$now}, latest_log_time) >= TIME('{$hrs}:00:00')";
         $groupByClause = 'GROUP BY reminder.contact_id, reminder.entity_id, reminder.entity_table';
         $selectClause .= ', MAX(reminder.action_date_time) as latest_log_time';
+        //CRM-15376 - do not send our reminders if original criteria no longer applies
+        // the first part of the startDateClause array is the earliest the reminder can be sent. If the
+        // event (e.g membership_end_date) has changed then the reminder may no longer apply
+        // @todo - this only handles events that get moved later. Potentially they might get moved earlier
+        $originalEventStartDateClause = empty($startDateClause) ? '' : 'AND' . $startDateClause[0];
+
         $sqlInsertValues = "{$selectClause}
 {$fromClause}
 {$joinClause}
 INNER JOIN {$reminderJoinClause}
-{$whereClause} {$limitWhereClause} AND {$repeatEventClause}
+{$whereClause} {$limitWhereClause} AND {$repeatEventClause} {$notINClause} $originalEventStartDateClause
 {$groupByClause}
 {$havingClause}";
 
@@ -1101,7 +1107,7 @@ INNER JOIN {$reminderJoinClause}
           CRM_Core_DAO::executeQuery($query, array(1 => array($actionSchedule->id, 'Integer')));
         }
 
-        if ($limitTo == 0) {
+        if ($isSendToAdditionalContacts) {
           $addSelect .= ', MAX(reminder.action_date_time) as latest_log_time';
           $sqlEndEventCheck = "
 SELECT * FROM {$table}
@@ -1151,10 +1157,10 @@ WHERE     m.owner_membership_id IS NOT NULL AND
     $excludeIds = array();
     $dao = CRM_Core_DAO::executeQuery($query, array());
     while ($dao->fetch()) {
-      if ($dao->slave_contact == $dao->contact_id_a && $dao->is_permission_b_a == 0) {
+      if ($dao->slave_contact == $dao->contact_id_a && $dao->is_permission_a_b == 0) {
         $excludeIds[] = $dao->slave_contact;
       }
-      elseif ($dao->slave_contact == $dao->contact_id_b && $dao->is_permission_a_b == 0) {
+      elseif ($dao->slave_contact == $dao->contact_id_b && $dao->is_permission_b_a == 0) {
         $excludeIds[] = $dao->slave_contact;
       }
     }
@@ -1182,6 +1188,12 @@ WHERE     m.owner_membership_id IS NOT NULL AND
     return $result;
   }
 
+  /**
+   * @param $id
+   * @param $mappingID
+   *
+   * @return null|string
+   */
   static function isConfigured($id, $mappingID) {
     $queryString = "SELECT count(id) FROM civicrm_action_schedule
                         WHERE  mapping_id = %1 AND

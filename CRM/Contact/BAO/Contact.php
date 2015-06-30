@@ -229,15 +229,14 @@ class CRM_Contact_BAO_Contact extends CRM_Contact_DAO_Contact {
     )
     ) {
       // create current employer
-      if (isset($params['employer_id'])) {
-        CRM_Contact_BAO_Contact_Utils::createCurrentEmployerRelationship($contact->id,
-          $params['employer_id'], $employerId
-        );
+      $newEmployer = !empty($params['employer_id']) ? $params['employer_id'] : CRM_Utils_Array::value('current_employer', $params);
+
+      $newContact = FALSE;
+      if (empty($params['contact_id'])) {
+        $newContact = TRUE;
       }
-      elseif ($params['current_employer']) {
-        CRM_Contact_BAO_Contact_Utils::createCurrentEmployerRelationship($contact->id,
-          $params['current_employer']
-        );
+      if ($newEmployer) {
+        CRM_Contact_BAO_Contact_Utils::createCurrentEmployerRelationship($contact->id, $newEmployer, $employerId, $newContact);
       }
       else {
         //unset if employer id exits
@@ -943,7 +942,8 @@ WHERE id={$id}; ";
     );
 
     if (in_array($params[$imageIndex]['type'], $mimeType)) {
-      $params[$imageIndex] = CRM_Contact_BAO_Contact::getRelativePath($params[$imageIndex]['name']);
+      $photo = basename($params[$imageIndex]['name']);
+      $params[$imageIndex] =  CRM_Utils_System::url('civicrm/contact/imagefile', 'photo='.$photo, TRUE, NULL, TRUE, TRUE);
       return TRUE;
     }
     else {
@@ -1298,6 +1298,10 @@ WHERE id={$id}; ";
     $cacheKeyString .= $export ? '_1' : '_0';
     $cacheKeyString .= $status ? '_1' : '_0';
     $cacheKeyString .= $search ? '_1' : '_0';
+    //CRM-14501 it turns out that the impact of permissioning here is sometimes inconsistent. The field that
+    //calculates custom fields takes into account the logged in user & caches that for all users
+    //as an interim fix we will cache the fields by contact
+    $cacheKeyString .= '_' . CRM_Core_Session::getLoggedInContactID();
 
     if (!self::$_exportableFields || !CRM_Utils_Array::value($cacheKeyString, self::$_exportableFields)) {
       if (!self::$_exportableFields) {
@@ -2079,7 +2083,7 @@ ORDER BY civicrm_email.is_primary DESC";
           if (($session->get('authSrc') & (CRM_Core_Permission::AUTH_SRC_CHECKSUM + CRM_Core_Permission::AUTH_SRC_LOGIN)) == 0 &&
             ($value == '' || !isset($value))) {
             continue;
-          } 
+          }
 
           $valueId = NULL;
           if (CRM_Utils_Array::value('customRecordValues', $params)) {
@@ -2136,21 +2140,21 @@ ORDER BY civicrm_email.is_primary DESC";
               }
             }
           }
-          else if (in_array($key, 
-              array('nick_name', 
-                'job_title', 
-                'middle_name', 
-                'birth_date', 
+          else if (in_array($key,
+              array('nick_name',
+                'job_title',
+                'middle_name',
+                'birth_date',
                 'gender_id',
-                'current_employer', 
-                'prefix_id', 
+                'current_employer',
+                'prefix_id',
                 'suffix_id')) &&
             ($value == '' || !isset($value)) &&
             ($session->get('authSrc') & (CRM_Core_Permission::AUTH_SRC_CHECKSUM + CRM_Core_Permission::AUTH_SRC_LOGIN)) == 0) {
-            // CRM-10128: if auth source is not checksum / login && $value is blank, do not fill $data with empty value 
+            // CRM-10128: if auth source is not checksum / login && $value is blank, do not fill $data with empty value
             // to avoid update with empty values
             continue;
-          } 
+          }
           else {
             $data[$key] = $value;
           }
@@ -2982,6 +2986,52 @@ LEFT JOIN civicrm_address add2 ON ( add1.master_id = add2.id )
   }
 
   /**
+   * Generate triggers to update the timestamp on the corresponding civicrm_contact row,
+   * on insert/update/delete to a table that extends civicrm_contact.
+   * Don't regenerate triggers for all such tables if only asked for one table.
+   *
+   * @param array $info
+   *   Reference to the array where generated trigger information is being stored
+   * @param string|null $reqTableName
+   *   Name of the table for which triggers are being generated, or NULL if all tables
+   * @param array $relatedTableNames
+   *   Array of all core or all custom table names extending civicrm_contact
+   * @param string $contactRefColumn
+   *   'contact_id' if processing core tables, 'entity_id' if processing custom tables
+   * @return void
+   *
+   * @link https://issues.civicrm.org/jira/browse/CRM-15602
+   * @see triggerInfo
+   * @access public
+   * @static
+   */
+  static function generateTimestampTriggers(&$info, $reqTableName, $relatedTableNames, $contactRefColumn) {
+    // Safety
+    $contactRefColumn = CRM_Core_DAO::escapeString($contactRefColumn);
+    // If specific related table requested, just process that one
+    if (in_array($reqTableName, $relatedTableNames)) {
+      $relatedTableNames = array($reqTableName);
+    }
+
+    // If no specific table requested (include all related tables),
+    // or a specific related table requested (as matched above)
+    if (empty($reqTableName) || in_array($reqTableName, $relatedTableNames)) {
+      $info[] = array(
+        'table' => $relatedTableNames,
+        'when' => 'AFTER',
+        'event' => array('INSERT', 'UPDATE'),
+        'sql' => "\nUPDATE civicrm_contact SET modified_date = CURRENT_TIMESTAMP WHERE id = NEW.$contactRefColumn;\n",
+      );
+      $info[] = array(
+        'table' => $relatedTableNames,
+        'when' => 'AFTER',
+        'event' => array('DELETE'),
+        'sql' => "\nUPDATE civicrm_contact SET modified_date = CURRENT_TIMESTAMP WHERE id = OLD.$contactRefColumn;\n",
+      );
+    }
+  }
+
+  /**
    * Get a list of triggers for the contact table
    *
    * @see hook_civicrm_triggerInfo
@@ -2999,6 +3049,7 @@ LEFT JOIN civicrm_address add2 ON ( add1.master_id = add2.id )
       }
     }
 
+    // Update timestamp for civicrm_contact itself
     if ($tableName == NULL || $tableName == self::getTableName()) {
       $info[] = array(
         'table' => array(self::getTableName()),
@@ -3016,18 +3067,7 @@ LEFT JOIN civicrm_address add2 ON ( add1.master_id = add2.id )
       'civicrm_phone',
       'civicrm_website',
     );
-    $info[] = array(
-      'table' => $relatedTables,
-      'when' => 'AFTER',
-      'event' => array('INSERT', 'UPDATE'),
-      'sql' => "\nUPDATE civicrm_contact SET modified_date = CURRENT_TIMESTAMP WHERE id = NEW.contact_id;\n",
-    );
-    $info[] = array(
-      'table' => $relatedTables,
-      'when' => 'AFTER',
-      'event' => array('DELETE'),
-      'sql' => "\nUPDATE civicrm_contact SET modified_date = CURRENT_TIMESTAMP WHERE id = OLD.contact_id;\n",
-    );
+    self::generateTimestampTriggers($info, $tableName, $relatedTables, 'contact_id');
 
     // Update timestamp when modifying related custom-data tables
     $customGroupTables = array();
@@ -3038,18 +3078,7 @@ LEFT JOIN civicrm_address add2 ON ( add1.master_id = add2.id )
       $customGroupTables[] = $customGroupDAO->table_name;
     }
     if (!empty($customGroupTables)) {
-      $info[] = array(
-        'table' => $customGroupTables,
-        'when' => 'AFTER',
-        'event' => array('INSERT', 'UPDATE'),
-        'sql' => "\nUPDATE civicrm_contact SET modified_date = CURRENT_TIMESTAMP WHERE id = NEW.entity_id;\n",
-      );
-      $info[] = array(
-        'table' => $customGroupTables,
-        'when' => 'AFTER',
-        'event' => array('DELETE'),
-        'sql' => "\nUPDATE civicrm_contact SET modified_date = CURRENT_TIMESTAMP WHERE id = OLD.entity_id;\n",
-      );
+      self::generateTimestampTriggers($info, $tableName, $customGroupTables, 'entity_id');
     }
 
     // Update phone table to populate phone_numeric field

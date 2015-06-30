@@ -630,7 +630,7 @@ class CRM_Core_Config extends CRM_Core_Config_Variables {
 
     // Whether we delete/create or simply preserve directories, we should
     // certainly make sure the restrictions are enforced.
-    foreach (array($this->templateCompileDir, $this->uploadDir, $this->configAndLogDir) as $dir) {
+    foreach (array($this->templateCompileDir, $this->uploadDir, $this->configAndLogDir, $this->customFileUploadDir) as $dir) {
       if ($dir && is_dir($dir)) {
         CRM_Utils_File::restrictAccess($dir);
       }
@@ -772,25 +772,37 @@ class CRM_Core_Config extends CRM_Core_Config_Variables {
   }
 
   /**
-   * clear leftover temporary tables
+   * Clear leftover temporary tables.
+   *
+   * This is called on upgrade, during tests and site move, from the cron and via clear caches in the UI.
+   *
+   * Currently the UI clear caches does not pass a time interval - which may need review as it does risk
+   * ripping the tables out from underneath a current action. This was considered but
+   * out-of-scope for CRM-16167
+   *
+   * @param string|bool $timeInterval
+   *   Optional time interval for mysql date function.g '2 day'. This can be used to prevent
+   *   tables created recently from being deleted.
    */
-  public static function clearTempTables() {
-    // CRM-5645
-    $dao = CRM_Core_DAO::executeQuery("SELECT DATABASE();");
-    $query = "
-SELECT TABLE_NAME as tableName
-FROM   INFORMATION_SCHEMA.TABLES
-WHERE  TABLE_SCHEMA = %1
-AND
-  ( TABLE_NAME LIKE 'civicrm_import_job_%'
-  OR       TABLE_NAME LIKE 'civicrm_export_temp%'
-  OR       TABLE_NAME LIKE 'civicrm_task_action_temp%'
-  OR       TABLE_NAME LIKE 'civicrm_report_temp%'
-  )
-";
+  public static function clearTempTables($timeInterval = FALSE) {
 
-    $params = array(1 => array($dao->database(), 'String'));
-    $tableDAO = CRM_Core_DAO::executeQuery($query, $params);
+    $dao = new CRM_Core_DAO();
+    $query = "
+      SELECT TABLE_NAME as tableName
+      FROM   INFORMATION_SCHEMA.TABLES
+      WHERE  TABLE_SCHEMA = %1
+      AND (
+        TABLE_NAME LIKE 'civicrm_import_job_%'
+        OR TABLE_NAME LIKE 'civicrm_export_temp%'
+        OR TABLE_NAME LIKE 'civicrm_task_action_temp%'
+        OR TABLE_NAME LIKE 'civicrm_report_temp%'
+        )
+    ";
+    if ($timeInterval) {
+      $query .= " AND CREATE_TIME < DATE_SUB(NOW(), INTERVAL {$timeInterval})";
+    }
+
+    $tableDAO = CRM_Core_DAO::executeQuery($query, array(1 => array($dao->database(), 'String')));
     $tables = array();
     while ($tableDAO->fetch()) {
       $tables[] = $tableDAO->tableName;
