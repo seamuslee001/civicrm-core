@@ -226,8 +226,8 @@ class CRM_Contribute_BAO_Contribution_Utils {
         // cache the is_recur values so we can process the additional gift as a
         // one-off payment.
         $pending = FALSE;
-        if ($form->_membershipBlock['is_separate_payment']) {
-          if (!empty($form->_params['auto_renew'])) {
+        if (!empty($form->_values['is_recur'])) {
+          if ($form->_membershipBlock['is_separate_payment'] && !empty($form->_params['auto_renew'])) {
             $cachedFormValue = CRM_Utils_Array::value('is_recur', $form->_values);
             $cachedParamValue = CRM_Utils_Array::value('is_recur', $paymentParams);
             unset($form->_values['is_recur']);
@@ -330,8 +330,13 @@ class CRM_Contribute_BAO_Contribution_Utils {
         );
       }
       $form->postProcessPremium($premiumParams, $contribution);
-      if (is_array($result) && !empty($result['trxn_id'])) {
-        $contribution->trxn_id = $result['trxn_id'];
+      if (is_array($result)) {
+        if (!empty($result['trxn_id'])) {
+          $contribution->trxn_id = $result['trxn_id'];
+        }
+        if (!empty($result['payment_status_id'])) {
+          $contribution->payment_status_id = $result['payment_status_id'];
+        }
       }
       $membershipResult[1] = $contribution;
     }

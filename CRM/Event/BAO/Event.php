@@ -1246,7 +1246,7 @@ WHERE civicrm_event.is_active = 1
           $taxAmt = $template->get_template_vars('totalTaxAmount');
           $prefixValue = CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::CONTRIBUTE_PREFERENCES_NAME, 'contribution_invoice_settings');
           $invoicing = CRM_Utils_Array::value('invoicing', $prefixValue);
-          if ($taxAmt && (isset($invoicing) && isset($prefixValue['is_email_pdf']))) {
+          if (isset($invoicing) && isset($prefixValue['is_email_pdf'])) {
             $sendTemplateParams['isEmailPdf'] = TRUE;
             $sendTemplateParams['contributionId'] = $values['contributionId'];
           }
@@ -1293,6 +1293,7 @@ WHERE civicrm_event.is_active = 1
       $profileIds = $id;
     }
 
+    $val = $groupTitles = NULL;
     foreach ($profileIds as $gid) {
       if (CRM_Core_BAO_UFGroup::filterUFGroups($gid, $cid)) {
         $values = array();
@@ -1707,7 +1708,7 @@ WHERE  id = $cfID
               $values[$index] = CRM_Utils_Date::customFormat(CRM_Utils_Date::format($params[$name]));
             }
             else {
-              $values[$index] = $params[$name];
+              $values[$index] = CRM_Utils_Array::value($name, $params);
             }
           }
         }

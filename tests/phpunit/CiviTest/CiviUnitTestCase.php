@@ -473,6 +473,9 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
    * Emulate a logged in user since certain functions use that.
    * value to store a record in the DB (like activity)
    * CRM-8180
+   *
+   * @return int
+   *   Contact ID of the created user.
    */
   public function createLoggedInUser() {
     $params = array(
@@ -481,9 +484,15 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
       'contact_type' => 'Individual',
     );
     $contactID = $this->individualCreate($params);
+    $this->callAPISuccess('UFMatch', 'create', array(
+      'contact_id' => $contactID,
+      'uf_name' => 'superman',
+      'uf_id' => 6,
+    ));
 
     $session = CRM_Core_Session::singleton();
     $session->set('userID', $contactID);
+    return $contactID;
   }
 
   public function cleanDB() {
@@ -525,7 +534,7 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
       CRM_Core_Transaction::forceRollbackIfEnabled();
       \Civi\Core\Transaction\Manager::singleton(TRUE);
 
-      $tablesToTruncate = array('civicrm_contact');
+      $tablesToTruncate = array('civicrm_contact', 'civicrm_uf_match');
       $this->quickCleanup($tablesToTruncate);
       $this->createDomainContacts();
     }
@@ -906,6 +915,39 @@ class CiviUnitTestCase extends PHPUnit_Extensions_Database_TestCase {
    */
   public function civicrm_api($entity, $action, $params) {
     return civicrm_api($entity, $action, $params);
+  }
+
+  /**
+   * Create a batch of external API calls which can
+   * be executed concurrently.
+   *
+   * @code
+   * $calls = $this->createExternalAPI()
+   *    ->addCall('Contact', 'get', ...)
+   *    ->addCall('Contact', 'get', ...)
+   *    ...
+   *    ->run()
+   *    ->getResults();
+   * @endcode
+   *
+   * @return \Civi\API\ExternalBatch
+   * @throws PHPUnit_Framework_SkippedTestError
+   */
+  public function createExternalAPI() {
+    global $civicrm_root;
+    $defaultParams = array(
+      'version' => $this->_apiversion,
+      'debug' => 1,
+    );
+
+    $calls = new \Civi\API\ExternalBatch($defaultParams);
+    $calls->setSettingsPath("$civicrm_root/tests/phpunit/CiviTest/civicrm.settings.cli.php");
+
+    if (!$calls->isSupported()) {
+      $this->markTestSkipped('The test relies on Civi\API\ExternalBatch. This is unsupported in the local environment.');
+    }
+
+    return $calls;
   }
 
   /**
@@ -2983,7 +3025,7 @@ AND    ( TABLE_NAME LIKE 'civicrm_value_%' )
    *   $this->_permissionedDisabledGroup = $this->groupCreate(array('title' => 'pick-me-disabled', 'is_active' => 0, 'name' => 'pick-me-disabled'));
    *   $this->_permissionedGroup = $this->groupCreate(array('title' => 'pick-me-active', 'is_active' => 1, 'name' => 'pick-me-active'));
    */
-  public function setupACL() {
+  public function setupACL($isProfile = FALSE) {
     global $_REQUEST;
     $_REQUEST = $this->_params;
 
@@ -3005,36 +3047,49 @@ AND    ( TABLE_NAME LIKE 'civicrm_value_%' )
 
     CRM_Core_DAO::executeQuery("
     INSERT INTO civicrm_acl_entity_role (
-    `acl_role_id`, `entity_table`, `entity_id`
-    ) VALUES (55, 'civicrm_group', {$this->_permissionedGroup});
+    `acl_role_id`, `entity_table`, `entity_id`, `is_active`
+    ) VALUES (55, 'civicrm_group', {$this->_permissionedGroup}, 1);
     ");
 
-    CRM_Core_DAO::executeQuery("
-    INSERT INTO civicrm_acl (
-    `name`, `entity_table`, `entity_id`, `operation`, `object_table`, `object_id`, `is_active`
-    )
-    VALUES (
-    'view picked', 'civicrm_group', $this->_permissionedGroup , 'Edit', 'civicrm_saved_search', {$this->_permissionedGroup}, 1
-    );
-    ");
+    if ($isProfile) {
+      CRM_Core_DAO::executeQuery("
+      INSERT INTO civicrm_acl (
+      `name`, `entity_table`, `entity_id`, `operation`, `object_table`, `object_id`, `is_active`
+      )
+      VALUES (
+      'view picked', 'civicrm_acl_role', 55, 'Edit', 'civicrm_uf_group', 0, 1
+      );
+      ");
+    }
+    else {
+      CRM_Core_DAO::executeQuery("
+      INSERT INTO civicrm_acl (
+      `name`, `entity_table`, `entity_id`, `operation`, `object_table`, `object_id`, `is_active`
+      )
+      VALUES (
+      'view picked', 'civicrm_group', $this->_permissionedGroup , 'Edit', 'civicrm_saved_search', {$this->_permissionedGroup}, 1
+      );
+      ");
 
-    CRM_Core_DAO::executeQuery("
-    INSERT INTO civicrm_acl (
-    `name`, `entity_table`, `entity_id`, `operation`, `object_table`, `object_id`, `is_active`
-    )
-    VALUES (
-    'view picked', 'civicrm_group',  $this->_permissionedGroup, 'Edit', 'civicrm_saved_search', {$this->_permissionedDisabledGroup}, 1
-    );
-    ");
+      CRM_Core_DAO::executeQuery("
+      INSERT INTO civicrm_acl (
+      `name`, `entity_table`, `entity_id`, `operation`, `object_table`, `object_id`, `is_active`
+      )
+      VALUES (
+      'view picked', 'civicrm_group',  $this->_permissionedGroup, 'Edit', 'civicrm_saved_search', {$this->_permissionedDisabledGroup}, 1
+      );
+      ");
+      //flush cache
+      CRM_ACL_BAO_Cache::resetCache();
+      CRM_Contact_BAO_Group::getPermissionClause(TRUE);
+      CRM_ACL_API::groupPermission('whatever', 9999, NULL, 'civicrm_saved_search', NULL, NULL, TRUE);
+    }
+
     $this->_loggedInUser = CRM_Core_Session::singleton()->get('userID');
     $this->callAPISuccess('group_contact', 'create', array(
       'group_id' => $this->_permissionedGroup,
       'contact_id' => $this->_loggedInUser,
     ));
-    //flush cache
-    CRM_ACL_BAO_Cache::resetCache();
-    CRM_Contact_BAO_Group::getPermissionClause(TRUE);
-    CRM_ACL_API::groupPermission('whatever', 9999, NULL, 'civicrm_saved_search', NULL, NULL, TRUE);
   }
 
   /**
