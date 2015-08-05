@@ -1923,10 +1923,7 @@ WHERE  ce.loc_block_id = $locBlockId";
     if ($startDate && $startDate >= $now) {
       $validDate = FALSE;
     }
-    if ($endDate && $endDate < $now) {
-      $validDate = FALSE;
-    }
-    if ($eventEnd && $eventEnd < $now) {
+    if ($endDate && $endDate < $now && $eventEnd && $eventEnd < $now) {
       $validDate = FALSE;
     }
 
@@ -2030,7 +2027,7 @@ WHERE  ce.loc_block_id = $locBlockId";
         $permissions[CRM_Core_Permission::EDIT] = array_keys($allEvents);
       }
       else {
-        $permissions[CRM_Core_Permission::EDIT] = &CRM_ACL_API::group(CRM_Core_Permission::EDIT, NULL, 'civicrm_event', $allEvents, $createdEvents);
+        $permissions[CRM_Core_Permission::EDIT] = CRM_ACL_API::group(CRM_Core_Permission::EDIT, NULL, 'civicrm_event', $allEvents, $createdEvents);
       }
 
       if (CRM_Core_Permission::check('edit all events')) {
@@ -2045,7 +2042,7 @@ WHERE  ce.loc_block_id = $locBlockId";
           // at the same time also allow any hook to override if needed.
           $createdEvents = array_keys($allEvents);
         }
-        $permissions[CRM_Core_Permission::VIEW] = &CRM_ACL_API::group(CRM_Core_Permission::VIEW, NULL, 'civicrm_event', $allEvents, $createdEvents);
+        $permissions[CRM_Core_Permission::VIEW] = CRM_ACL_API::group(CRM_Core_Permission::VIEW, NULL, 'civicrm_event', $allEvents, $createdEvents);
       }
 
       $permissions[CRM_Core_Permission::DELETE] = array();

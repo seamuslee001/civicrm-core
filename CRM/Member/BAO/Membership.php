@@ -838,7 +838,7 @@ INNER JOIN  civicrm_membership_type type ON ( type.id = membership.membership_ty
           }
           elseif ($memType['is_active']) {
             $javascriptMethod = NULL;
-            $allowAutoRenewOpt = 1;
+            $allowAutoRenewOpt = (int) $memType['auto_renew'];
             if (is_array($form->_paymentProcessors)) {
               foreach ($form->_paymentProcessors as $id => $val) {
                 if (!$val['is_recur']) {
@@ -1908,6 +1908,10 @@ WHERE  civicrm_membership.contact_id = civicrm_contact.id
 
         // we should not created contribution record for related contacts, CRM-3371
         unset($params['contribution_status_id']);
+
+        //CRM-16857: Do not create multiple line-items for inherited membership through priceset.
+        unset($params['lineItems']);
+        unset($params['line_item']);
 
         if (($params['status_id'] == $deceasedStatusId) || ($params['status_id'] == $expiredStatusId)) {
           // related membership is not active so does not count towards maximum
