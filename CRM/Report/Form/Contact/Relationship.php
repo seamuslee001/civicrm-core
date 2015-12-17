@@ -464,6 +464,11 @@ class CRM_Report_Form_Contact_Relationship extends CRM_Report_Form {
         }
       }
     }
+    // Only add extra test if is_valid hasn't been set and is_active is set
+    if (CRM_Utils_Array::value('is_active_value', $this->_params) == '1' && 
+      CRM_Utils_Array::value('is_valid_value', $this->_params) == NULL) {
+      $whereClauses[] = $this->buildValidityQuery(1);
+    }
 
     if (empty($whereClauses)) {
       $this->_where = 'WHERE ( 1 ) ';
