@@ -3132,5 +3132,18 @@ AND        m.id = %1
     }
     return $fieldPerms;
   }
+  
+  /**
+   * Whitelist of possible values for the entity_table field
+   * @return array
+   */ 
+  public static function mailingGroupEntityTables() {
+    $tables = array(
+      'civicrm_group',
+      'civicrm_mailing',
+    );
+    // Identical keys & values
+    return array_combine($tables, $tables);
+  }
 
 }
