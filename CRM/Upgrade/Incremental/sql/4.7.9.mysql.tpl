@@ -11,7 +11,16 @@ WHERE name = 'Print PDF Letter' AND option_group_id = @option_group_id_act;
 UPDATE civicrm_state_province SET name="Wake Island" WHERE name="Wake Ialand";
 
 --CRM-12252 Add in help_pre and help_post colmns to price field value table
-ALTER TABLE `civicrm_price_field_value`
-ADD `help_pre` text COLLATE utf8_unicode_ci COMMENT 'Price field option pre help text.';
-ALTER TABLE `civicrm_price_field_value`
-ADD `help_post` text COLLATE utf8_unicode_ci COMMENT 'Price field option post field help.';
+{if $multilingual}
+  {foreach from=$locales item=locale}
+    ALTER TABLE `civicrm_price_field_value`
+    ADD COLUMN `help_pre_{$locale}` text COLLATE utf8_unicode_ci COMMENT 'Price field option pre help text.';
+    ALTER TABLE `civicrm_price_field_value`
+    ADD `help_post_{$locale}` text COLLATE utf8_unicode_ci COMMENT 'Price field option post field help.';
+  {/foreach}
+{else}
+  ALTER TABLE `civicrm_price_field_value`
+  ADD COLUMN `help_pre` text COLLATE utf8_unicode_ci COMMENT 'Price field option pre help text.';
+  ALTER TABLE `civicrm_price_field_value`
+  ADD `help_post` text COLLATE utf8_unicode_ci COMMENT 'Price field option post field help.';
+{/if}
