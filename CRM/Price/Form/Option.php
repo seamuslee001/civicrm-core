@@ -217,6 +217,9 @@ class CRM_Price_Form_Option extends CRM_Core_Form {
 
       $this->add('textarea', 'description', ts('Description'));
 
+      $this->add('textarea', 'help_pre', ts('Option Pre Help text'));
+      $this->add('textarea', 'help_post', ts('Option Post Help text'));
+
       // weight
       $this->add('text', 'weight', ts('Order'), NULL, TRUE);
       $this->addRule('weight', ts('is a numeric field'), 'numeric');
