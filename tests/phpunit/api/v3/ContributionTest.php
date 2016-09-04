@@ -1059,6 +1059,31 @@ class api_v3_ContributionTest extends CiviUnitTestCase {
   }
 
   /**
+   * Function tests that financial records are updated when Payment Instrument is changed when amount is negative.
+   */
+  public function testCreateUpdateNegativeContributionPaymentInstrument() {
+    $instrumentId = $this->_addPaymentInstrument();
+    $contribParams = array(
+      'contact_id' => $this->_individualId,
+      'total_amount' => -100.00,
+      'financial_type_id' => $this->_financialTypeId,
+      'payment_instrument_id' => 4,
+      'contribution_status_id' => 1,
+
+    );
+    $contribution = $this->callAPISuccess('contribution', 'create', $contribParams);
+
+    $newParams = array_merge($contribParams, array(
+        'id' => $contribution['id'],
+        'payment_instrument_id' => $instrumentId,
+      )
+    );
+    $contribution = $this->callAPISuccess('contribution', 'create', $newParams);
+    $this->assertAPISuccess($contribution);
+    $this->_checkFinancialTrxn($contribution, 'paymentInstrument', $instrumentId, array('total_amount' => '-100.00'));
+  }
+
+  /**
    * Function tests that financial records are added when Contribution is Refunded.
    */
   public function testCreateUpdateContributionRefund() {
@@ -2821,7 +2846,6 @@ class api_v3_ContributionTest extends CiviUnitTestCase {
         $compareParams['to_financial_account_id'] = 12;
       }
     }
-
     $this->assertDBCompareValues('CRM_Financial_DAO_FinancialTrxn', $params, array_merge($compareParams, $extraParams));
   }
 

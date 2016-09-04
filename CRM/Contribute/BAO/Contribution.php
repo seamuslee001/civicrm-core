@@ -189,8 +189,7 @@ class CRM_Contribute_BAO_Contribution extends CRM_Contribute_DAO_Contribution {
     // CRM-16189
     CRM_Financial_BAO_FinancialAccount::checkFinancialTypeHasDeferred($params, $contributionID);
 
-    if (!isset($params['tax_amount']) && $setPrevContribution && (isset($params['total_amount']) || isset
-      ($params['financial_type_id']))) {
+    if (!isset($params['tax_amount']) && $setPrevContribution && (isset($params['total_amount']) || isset($params['financial_type_id']))) {
       $params = CRM_Contribute_BAO_Contribution::checkTaxAmount($params);
     }
 
@@ -3471,15 +3470,24 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
         $lastFinancialTrxnId = CRM_Core_BAO_FinancialTrxn::getFinancialTrxnId($params['prevContribution']->id, 'DESC', FALSE, NULL, $deferredFinancialAccount);
         if (!empty($lastFinancialTrxnId['financialTrxnId'])) {
           $params['trxnParams']['to_financial_account_id'] = CRM_Core_DAO::getFieldValue('CRM_Financial_DAO_FinancialTrxn', $lastFinancialTrxnId['financialTrxnId'], 'to_financial_account_id');
-          $params['trxnParams']['payment_instrument_id'] = $params['prevContribution']->payment_instrument_id;
+          if ($params['total_amount'] > 0) {
+            $params['trxnParams']['payment_instrument_id'] = $params['prevContribution']->payment_instrument_id;
+          }
+          else {
+            $params['trxnParams']['payment_instrument_id'] = $params['contribution']->payment_instrument_id;
+          }
         }
       }
       else {
         $params['trxnParams']['to_financial_account_id'] = $params['to_financial_account_id'];
-        $params['trxnParams']['payment_instrument_id'] = $params['contribution']->payment_instrument_id;
+        if ($params['total_amount'] < 0) {
+          $params['trxnParams']['payment_instrument_id'] = $params['prevContribution']->payment_instrument_id;
+        }
+        else {
+          $params['trxnParams']['payment_instrument_id'] = $params['contribution']->payment_instrument_id;
+        }
       }
     }
-
     if ($context == 'changedStatus') {
       if (($previousContributionStatus == 'Pending'
           || $previousContributionStatus == 'In Progress')
@@ -3522,7 +3530,6 @@ INNER JOIN civicrm_activity ON civicrm_activity_contact.activity_id = civicrm_ac
         return;
       }
     }
-
     $trxn = CRM_Core_BAO_FinancialTrxn::create($params['trxnParams']);
     $params['entity_id'] = $trxn->id;
     if ($context != 'changePaymentInstrument') {
