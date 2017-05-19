@@ -53,7 +53,7 @@ class CRM_Mailing_Page_Event extends CRM_Core_Page {
    * @return void
    */
   public function run() {
-    $selector = &new CRM_Mailing_Selector_Event(
+    $selector = new CRM_Mailing_Selector_Event(
       CRM_Utils_Request::retrieve('event', 'String', $this),
       CRM_Utils_Request::retrieve('distinct', 'Boolean', $this),
       CRM_Utils_Request::retrieve('mid', 'Positive', $this),
@@ -62,6 +62,9 @@ class CRM_Mailing_Page_Event extends CRM_Core_Page {
     );
 
     $mailing_id = CRM_Utils_Request::retrieve('mid', 'Positive', $this);
+
+    // check that the user has permission to access mailing id
+    CRM_Mailing_BAO_Mailing::checkPermission($mailing_id);
 
     //assign backurl
     $context = CRM_Utils_Request::retrieve('context', 'String', $this);
