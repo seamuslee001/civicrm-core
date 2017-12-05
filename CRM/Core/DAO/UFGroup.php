@@ -75,6 +75,12 @@ class CRM_Core_DAO_UFGroup extends CRM_Core_DAO {
    */
   public $title;
   /**
+   * Form display title.
+   *
+   * @var string
+   */
+  public $display_title;
+  /**
    * Optional verbose description of the profile.
    *
    * @var text
@@ -275,6 +281,19 @@ class CRM_Core_DAO_UFGroup extends CRM_Core_DAO {
           'title' => ts('Title') ,
           'description' => 'Form title.',
           'required' => true,
+          'maxlength' => 64,
+          'size' => CRM_Utils_Type::BIG,
+          'table_name' => 'civicrm_uf_group',
+          'entity' => 'UFGroup',
+          'bao' => 'CRM_Core_BAO_UFGroup',
+          'localizable' => 1,
+        ) ,
+        'display_title' => array(
+          'name' => 'display_title',
+          'type' => CRM_Utils_Type::T_STRING,
+          'title' => ts('Display Title') ,
+          'description' => 'Form display title.',
+          'required' => false,
           'maxlength' => 64,
           'size' => CRM_Utils_Type::BIG,
           'table_name' => 'civicrm_uf_group',

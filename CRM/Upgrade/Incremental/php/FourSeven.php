@@ -456,6 +456,7 @@ class CRM_Upgrade_Incremental_php_FourSeven extends CRM_Upgrade_Incremental_Base
     $this->addTask('CRM-12167 - Add visibility column to civicrm_price_field_value', 'addColumn',
       'civicrm_price_field_value', 'visibility_id', 'int(10) unsigned DEFAULT 1 COMMENT "Implicit FK to civicrm_option_group with name = \'visibility\'"');
     $this->addTask('Remove broken Contribution_logging reports', 'removeContributionLoggingReports');
+    $this->addTask('CRM-21225: Add display title field to civicrm_uf_group', 'civiUfGroupAddDisplayTitle');
   }
 
   /**
@@ -1385,6 +1386,15 @@ FROM `civicrm_dashboard_contact` JOIN `civicrm_contact` WHERE civicrm_dashboard_
       $dataType = 'datetime';
     }
     CRM_Core_DAO::executeQuery("ALTER TABLE civicrm_mailing CHANGE created_date created_date {$dataType} NULL DEFAULT NULL COMMENT 'Date and time this mailing was created.'");
+    return TRUE;
+  }
+
+  /**
+   * CRM-21225 Add display title field to civicrm_uf_group
+   * @return bool
+   */
+  public static function civiUfGroupAddDisplayTitle(CRM_Queue_TaskContext $ctx) {
+    CRM_Core_DAO::executeQuery("ALTER TABLE civicrm_uf_group ADD display_title VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL COMMENT 'Form display title' AFTER title;");
     return TRUE;
   }
 
