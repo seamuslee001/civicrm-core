@@ -437,7 +437,6 @@ class CRM_Upgrade_Incremental_php_FourSeven extends CRM_Upgrade_Incremental_Base
       'civicrm_case', 'created_date', "timestamp NULL  DEFAULT NULL COMMENT 'When was the case was created.'");
     $this->addTask('CRM-20958 - Add modified_date to civicrm_case', 'addColumn',
       'civicrm_case', 'modified_date', "timestamp NULL  DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'When was the case (or closely related entity) was created or modified or deleted.'");
-    $this->addTask('Rebuild Multilingual Schema', 'rebuildMultilingalSchema');
   }
 
   /**
@@ -456,7 +455,6 @@ class CRM_Upgrade_Incremental_php_FourSeven extends CRM_Upgrade_Incremental_Base
     $this->addTask('CRM-12167 - Add visibility column to civicrm_price_field_value', 'addColumn',
       'civicrm_price_field_value', 'visibility_id', 'int(10) unsigned DEFAULT 1 COMMENT "Implicit FK to civicrm_option_group with name = \'visibility\'"');
     $this->addTask('Remove broken Contribution_logging reports', 'removeContributionLoggingReports');
-    $this->addTask('CRM-21225: Add display title field to civicrm_uf_group', 'civiUfGroupAddDisplayTitle');
   }
 
   /**
@@ -481,7 +479,18 @@ class CRM_Upgrade_Incremental_php_FourSeven extends CRM_Upgrade_Incremental_Base
         $this->addTask($title, 'updateContributionInvoiceNumber', $startId, $endId, $invoicePrefix);
       }
     }
+    $this->addTask('CRM-21225: Add display title field to civicrm_uf_group', 'addColumn', 'civicrm_uf_group', 'display_title',
+       "VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL COMMENT 'Form display title'", TRUE);
+    $this->addTask('Rebuild Multilingual Schema', 'rebuildMultilingalSchema');
+  }
 
+  /**
+   * Upgrade function.
+   *
+   * @param string $rev
+   */
+  public function upgrade_4_7_29($rev) {
+    $this->addTask(ts('Upgrade DB to %1: SQL', array(1 => $rev)), 'runSql', $rev);
     $this->addTask('Rebuild Multilingual Schema', 'rebuildMultilingalSchema');
   }
 
@@ -1386,15 +1395,6 @@ FROM `civicrm_dashboard_contact` JOIN `civicrm_contact` WHERE civicrm_dashboard_
       $dataType = 'datetime';
     }
     CRM_Core_DAO::executeQuery("ALTER TABLE civicrm_mailing CHANGE created_date created_date {$dataType} NULL DEFAULT NULL COMMENT 'Date and time this mailing was created.'");
-    return TRUE;
-  }
-
-  /**
-   * CRM-21225 Add display title field to civicrm_uf_group
-   * @return bool
-   */
-  public static function civiUfGroupAddDisplayTitle(CRM_Queue_TaskContext $ctx) {
-    CRM_Core_DAO::executeQuery("ALTER TABLE civicrm_uf_group ADD display_title VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL COMMENT 'Form display title' AFTER title;");
     return TRUE;
   }
 

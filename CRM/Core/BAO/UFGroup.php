@@ -1672,13 +1672,15 @@ AND    ( entity_id IS NULL OR entity_id <= 0 )
    *   array of ufgroups for a module
    */
   public static function getModuleUFGroup($moduleName = NULL, $count = 0, $skipPermission = TRUE, $op = CRM_Core_Permission::VIEW, $returnFields = NULL) {
-    $selectFields = array('id', 'title', 'display_title', 'created_id', 'is_active', 'is_reserved', 'group_type');
+    $selectFields = array('id', 'title', 'created_id', 'is_active', 'is_reserved', 'group_type');
 
     if (!CRM_Core_Config::isUpgradeMode()) {
       // CRM-13555, since description field was added later (4.4), and to avoid any problems with upgrade
       $selectFields[] = 'description';
     }
-
+    if (CRM_Core_DAO::checkFieldExists('civicrm_uf_group', 'display_title')) {
+      $selectFields[] = 'display_title';
+    }
     if (!empty($returnFields)) {
       $selectFields = array_merge($returnFields, array_diff($selectFields, $returnFields));
     }
