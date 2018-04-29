@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "9c5441f5ce4c51ed3a8cc326693cd904",
+    "content-hash": "868cc3f9aa5b35412f9699aefa8fa309",
     "packages": [
         {
             "name": "civicrm/civicrm-cxn-rpc",
@@ -81,6 +81,50 @@
             "time": "2018-01-23T06:26:55+00:00"
         },
         {
+            "name": "cweagans/composer-patches",
+            "version": "1.6.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/cweagans/composer-patches.git",
+                "reference": "462e65061606dc6149349535d4322241515d1b16"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/cweagans/composer-patches/zipball/462e65061606dc6149349535d4322241515d1b16",
+                "reference": "462e65061606dc6149349535d4322241515d1b16",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^1.0",
+                "php": ">=5.3.0"
+            },
+            "require-dev": {
+                "composer/composer": "~1.0",
+                "phpunit/phpunit": "~4.6"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "cweagans\\Composer\\Patches"
+            },
+            "autoload": {
+                "psr-4": {
+                    "cweagans\\Composer\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-2-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Cameron Eagans",
+                    "email": "me@cweagans.net"
+                }
+            ],
+            "description": "Provides a way to patch Composer packages.",
+            "time": "2017-12-07T16:16:31+00:00"
+        },
+        {
             "name": "dompdf/dompdf",
             "version": "v0.8.0",
             "source": {
@@ -110,6 +154,9 @@
             "extra": {
                 "branch-alias": {
                     "dev-develop": "0.7-dev"
+                },
+                "patches_applied": {
+                    "Fix Fatal error: Uncaught Dompdf Exception: No block-level parent found.": "tools/scripts/composer/patches/dompdf_no_block_level_parent_fix.patch"
                 }
             },
             "autoload": {
@@ -526,6 +573,14 @@
                 "pear/auth_sasl": "Install optionally via your project's composer.json"
             },
             "type": "library",
+            "extra": {
+                "patches_applied": {
+                    "CRM-8744 Display CiviCRM Specific error message": "tools/scripts/composer/patches/net-smtp-patch.patch",
+                    "Fix PHP7 Compliance": "tools/scripts/composer/patches/net-smtp-php7-patch.patch",
+                    "Fix Pass by reference issues": "tools/scripts/composer/patches/net-smtp-ref-patch.patch",
+                    "Fix TLS support issue in PHP5.6": "tools/scripts/composer/patches/net-smtp-tls-patch.patch"
+                }
+            },
             "autoload": {
                 "psr-0": {
                     "Net": "./"
