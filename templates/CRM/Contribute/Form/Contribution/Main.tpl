@@ -227,7 +227,9 @@
     {/if}
 
     <div class="crm-public-form-item crm-group custom_pre_profile-group">
-    {include file="CRM/UF/Form/Block.tpl" fields=$customPre}
+      {crmRegion name="contribution-custom-pre"}
+        {include file="CRM/UF/Form/Block.tpl" fields=$customPre}
+      {/crmRegion}
     </div>
 
     {if $isHonor}
@@ -296,7 +298,9 @@
   {include file="CRM/Core/BillingBlockWrapper.tpl"}
 
   <div class="crm-public-form-item crm-group custom_post_profile-group">
-  {include file="CRM/UF/Form/Block.tpl" fields=$customPost}
+    {crmRegion name="contribution-custom-post"}
+      {include file="CRM/UF/Form/Block.tpl" fields=$customPost}
+    {/crmRegion}
   </div>
 
   {if $is_monetary and $form.bank_account_number}
