@@ -936,4 +936,24 @@ class CRM_Utils_String {
     return array_values(array_unique($result));
   }
 
+  /**
+   * HTML Encode string for storing in DB
+   * @param string $string
+   * @return string
+   */
+  public static function encodeInput($string) {
+    $string = str_replace(array('<', '>'), array('&lt;', '&gt;'), $string);
+    return $string;
+  }
+
+  /**
+   * HTML Encode string for storing in DB
+   * @param string $string
+   * @return string
+   */
+  public static function decodeOutput($string) {
+    $string = str_replace(array('&lt;', '&gt;'), array('<', '>'), $string);
+    return $string;
+  }
+
 }

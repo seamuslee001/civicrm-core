@@ -144,7 +144,7 @@ class CRM_Utils_API_HTMLInputCoder extends CRM_Utils_API_AbstractFieldCoder {
       }
     }
     elseif ($castToString || is_string($values)) {
-      $values = str_replace(['<', '>'], ['&lt;', '&gt;'], $values);
+      $values = CRM_Utils_String::encodeInput($values);
     }
   }
 
@@ -159,7 +159,7 @@ class CRM_Utils_API_HTMLInputCoder extends CRM_Utils_API_AbstractFieldCoder {
       }
     }
     elseif ($castToString || is_string($values)) {
-      $values = str_replace(['&lt;', '&gt;'], ['<', '>'], $values);
+      $values = CRM_Utils_String::decodeOutput($values);
     }
   }
 

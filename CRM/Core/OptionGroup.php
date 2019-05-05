@@ -50,30 +50,39 @@ class CRM_Core_OptionGroup {
    * @param bool $grouping
    * @param bool $localize
    * @param string $valueColumnName
+   * @param bool $decode
    *
    * @return array
    */
   public static function &valuesCommon(
     $dao, $flip = FALSE, $grouping = FALSE,
-    $localize = FALSE, $valueColumnName = 'label'
+    $localize = FALSE, $valueColumnName = 'label', $decode = FALSE
   ) {
     self::$_values = [];
 
     while ($dao->fetch()) {
+      if ($decode) {
+        $value = CRM_Utils_String::decodeOutput($dao->value);
+        $valueColumn = CRM_Utils_String::decodeOutput($dao->{$valueColumnName});
+      }
+      else {
+        $value = $dao->value;
+        $valueColumn = $dao->{$valueColumnName};
+      }
       if ($flip) {
         if ($grouping) {
-          self::$_values[$dao->value] = $dao->grouping;
+          self::$_values[$value] = $dao->grouping;
         }
         else {
-          self::$_values[$dao->{$valueColumnName}] = $dao->value;
+          self::$_values[$valueColumn] = $value;
         }
       }
       else {
         if ($grouping) {
-          self::$_values[$dao->{$valueColumnName}] = $dao->grouping;
+          self::$_values[$valueColumn] = $dao->grouping;
         }
         else {
-          self::$_values[$dao->value] = $dao->{$valueColumnName};
+          self::$_values[$value] = $valueColumn;
         }
       }
     }
@@ -111,6 +120,8 @@ class CRM_Core_OptionGroup {
    *   the column to use for 'key'.
    * @param string $orderBy
    *   the column to use for ordering.
+   * @param bool $decode
+   *   Should the values output be decoded.
    *
    * @return array
    *   The values as specified by the params
@@ -119,7 +130,7 @@ class CRM_Core_OptionGroup {
     $name, $flip = FALSE, $grouping = FALSE,
     $localize = FALSE, $condition = NULL,
     $labelColumnName = 'label', $onlyActive = TRUE, $fresh = FALSE, $keyColumnName = 'value',
-    $orderBy = 'weight'
+    $orderBy = 'weight', $decode = FALSE
   ) {
     $cache = CRM_Utils_Cache::singleton();
     $cacheKey = self::createCacheKey($name, $flip, $grouping, $localize, $condition, $labelColumnName, $onlyActive, $keyColumnName, $orderBy);
@@ -168,7 +179,7 @@ WHERE  v.option_group_id = g.id
     $p = [1 => [$name, 'String']];
     $dao = CRM_Core_DAO::executeQuery($query, $p);
 
-    $var = self::valuesCommon($dao, $flip, $grouping, $localize, $labelColumnName);
+    $var = self::valuesCommon($dao, $flip, $grouping, $localize, $labelColumnName, $decode);
 
     // call option value hook
     CRM_Utils_Hook::optionValues($var, $name);
@@ -225,12 +236,14 @@ WHERE  v.option_group_id = g.id
    *   the column to use for 'label'.
    * @param bool $onlyActive
    * @param bool $fresh
+   * @param bool $decode
+   *   Should the option value be decoded
    *
    * @return array
    *   Array of values as specified by the above params
    * @void
    */
-  public static function &valuesByID($id, $flip = FALSE, $grouping = FALSE, $localize = FALSE, $labelColumnName = 'label', $onlyActive = TRUE, $fresh = FALSE) {
+  public static function &valuesByID($id, $flip = FALSE, $grouping = FALSE, $localize = FALSE, $labelColumnName = 'label', $onlyActive = TRUE, $fresh = FALSE, $decode = FALSE) {
     $cacheKey = self::createCacheKey($id, $flip, $grouping, $localize, $labelColumnName, $onlyActive);
 
     $cache = CRM_Utils_Cache::singleton();

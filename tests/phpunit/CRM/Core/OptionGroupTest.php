@@ -107,4 +107,25 @@ class CRM_Core_OptionGroupTest extends CiviUnitTestCase {
     $this->assertEquals($actual, $clean);
   }
 
+  public function testEncodedFromEmailAddressRetrival() {
+    $fromEmailAddress = '"CiviCRM Core Team" <team@civicrm.org>';
+    $encodedAddress = CRM_Utils_String::encodeInput($fromEmailAddress);
+    $optionGroup = $this->callAPISuccess('OptionGroup', 'get', ['name' => 'from_email_address']);
+    CRM_Core_DAO::executeQuery("INSERT INTO civicrm_option_value (domain_id, name, label, value, weight, option_group_id, is_active)
+      VALUES (1, %1, %1, 10, 10, %2, 1)", [
+      1 => [$encodedAddress, 'String'],
+      2 => [$optionGroup['id'], 'Positive'],
+    ]);
+    // Ensure that when calling for decoded output it is in the correct format
+    $optionValues = CRM_Core_OptionGroup::values('from_email_address', FALSE, FALSE, FALSE, NULL, 'label', FALSE, FALSE, 'value', 'weight', TRUE);
+    $this->assertEquals($fromEmailAddress, $optionValues[10]);
+    $optionValues = CRM_Core_OptionGroup::values('from_email_address', TRUE, FALSE, FALSE, NULL, 'label', FALSE, FALSE, 'value', 'weight', TRUE);
+    $this->assertEquals(10, $optionValues[$fromEmailAddress]);
+    $optionValue = $this->callAPISuccess('OptionValue', 'get', ['option_group_id' => 'from_email_address', 'weight' => 10]);
+    $this->assertEquals($fromEmailAddress, $optionValue['values'][$optionValue['id']]['label']);
+    // Ensure that create by API is not encoded by default. 
+    $optionValueCreate = $this->callAPISuccess('option_value', 'create', ['domain_id' => 1, 'label' => $fromEmailAddress, 'value' => 9, 'option_group_id' => $optionGroup['id']]);
+    $this->assertEquals($fromEmailAddress, CRM_Core_OptionGroup::values('from_email_address')[9]);
+  }
+
 }
