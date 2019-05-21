@@ -413,7 +413,7 @@ function _civicrm_api3_attachment_parse_params($params) {
  *   Maybe "File" or "File JOIN EntityFile".
  * @param CRM_Core_DAO_EntityFile $entityFileDao
  *   Maybe "EntityFile" or "File JOIN EntityFile".
- * @param bool $returnContent
+ * @paramn bool $returnContent
  *   Whether to return the full content of the file.
  * @param bool $isTrusted
  *   Whether the current request is trusted to perform file-specific operations.

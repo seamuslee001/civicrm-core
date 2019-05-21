@@ -836,6 +836,23 @@ class api_v3_SyntaxConformanceTest extends CiviUnitTestCase {
    * @dataProvider entities_get
    * @param $Entity
    */
+  public function testNegativeOffsetParam_get($Entity) {
+
+    if (in_array($Entity, $this->toBeImplemented['get'])) {
+      // $this->markTestIncomplete("civicrm_api3_{$Entity}_get to be implemented");
+      return;
+    }
+    $result = civicrm_api($Entity, 'Get', ['version' => 3, 'options' => ['offset' => -10]]);
+    if ($result['is_error']) {
+      print_r($result);
+    }
+    $this->assertEquals(0, $result['is_error']);
+  }
+
+  /**
+   * @dataProvider entities_get
+   * @param $Entity
+   */
   public function testEmptyParam_getString($Entity) {
 
     if (in_array($Entity, $this->toBeImplemented['get'])) {

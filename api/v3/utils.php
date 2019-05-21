@@ -817,8 +817,8 @@ function _civicrm_api3_get_options_from_params(&$params, $queryObject = FALSE, $
   }
 
   $options = [
-    'offset' => CRM_Utils_Rule::integer($offset) ? $offset : NULL,
-    'limit' => (!$is_count && CRM_Utils_Rule::integer($limit)) ? $limit : NULL,
+    'offset' => CRM_Utils_Rule::positiveInteger($offset) ? $offset : NULL,
+    'limit' => (!$is_count && CRM_Utils_Rule::positiveInteger($limit)) ? $limit : NULL,
     'is_count' => $is_count,
     'return' => !empty($returnProperties) ? $returnProperties : [],
   ];
@@ -1236,7 +1236,6 @@ function formatCheckBoxField(&$checkboxFieldValue, $customFieldLabel, $entity) {
 function _civicrm_api3_basic_get($bao_name, $params, $returnAsSuccess = TRUE, $entity = "", $sql = NULL, $uniqueFields = FALSE) {
   $entity = $entity ?: CRM_Core_DAO_AllCoreTables::getBriefName(str_replace('_BAO_', '_DAO_', $bao_name));
   $options = _civicrm_api3_get_options_from_params($params);
-
   $query = new \Civi\API\Api3SelectQuery($entity, CRM_Utils_Array::value('check_permissions', $params, FALSE));
   $query->where = $params;
   if ($options['is_count']) {
@@ -1247,8 +1246,12 @@ function _civicrm_api3_basic_get($bao_name, $params, $returnAsSuccess = TRUE, $e
     $query->orderBy = $options['sort'];
     $query->isFillUniqueFields = $uniqueFields;
   }
-  $query->limit = $options['limit'];
-  $query->offset = $options['offset'];
+  // Ensure that we only pass in Positive integers to limit and offset
+  foreach (['limit', 'offset'] as $queryParam) {
+    if (CRM_Utils_Rule::positiveInteger($options[$queryParam])) {
+      $query->$queryParam = $options[$queryParam];
+    }
+  }
   $query->merge($sql);
   $result = $query->run();
 
