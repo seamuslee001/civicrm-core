@@ -346,7 +346,12 @@ class CRM_Core_BAO_RecurringEntity extends CRM_Core_DAO_RecurringEntity {
       }
 
       $count = 1;
-      $this->recursion->generateOccurrences();
+      try {
+        $this->recursion->generateOccurrences();
+      } catch (Exception $e) {
+        CRM_Core_Error::statusBounce($e->getMessage());
+        return $recursionDates;
+      }
       foreach ($this->recursion->occurrences as $result) {
         $skip = FALSE;
         if ($result == $this->recursion_start_date) {
