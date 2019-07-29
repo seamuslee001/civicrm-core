@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "027475804731d7ef0bd3e0feb2139d3c",
+    "content-hash": "69d55711eae571d6662f91ebb78f1a71",
     "packages": [
         {
             "name": "civicrm/civicrm-cxn-rpc",
@@ -2143,6 +2143,53 @@
             "description": "Default configuration for certificate authorities",
             "homepage": "https://github.com/totten/ca_config",
             "time": "2017-05-10T20:08:17+00:00"
+        },
+        {
+            "name": "tplaner/when",
+            "version": "v3.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/tplaner/When.git",
+                "reference": "09182e1707085382b8207c480120e96e98880563"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/tplaner/When/zipball/09182e1707085382b8207c480120e96e98880563",
+                "reference": "09182e1707085382b8207c480120e96e98880563",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^7.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "When\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Tom Planer",
+                    "email": "tplaner@gmail.com"
+                }
+            ],
+            "description": "Date/Calendar recursion library.",
+            "homepage": "https://github.com/tplaner/When",
+            "keywords": [
+                "date",
+                "datetime",
+                "recurrence",
+                "repeat",
+                "time"
+            ],
+            "time": "2019-04-17T14:46:29+00:00"
         },
         {
             "name": "zendframework/zend-escaper",
