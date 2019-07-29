@@ -31,9 +31,6 @@
  * @copyright CiviCRM LLC (c) 2004-2019
  */
 
-require_once 'packages/When/src/Valid.php';
-require_once 'packages/When/src/When.php';
-
 use When\When;
 /**
  * Class CRM_Core_BAO_RecurringEntity.
