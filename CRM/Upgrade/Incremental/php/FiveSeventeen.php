@@ -55,10 +55,9 @@ class CRM_Upgrade_Incremental_php_FiveSeventeen extends CRM_Upgrade_Incremental_
    *   an intermediate version; note that setPostUpgradeMessage is called repeatedly with different $revs.
    */
   public function setPostUpgradeMessage(&$postUpgradeMessage, $rev) {
-    // Example: Generate a post-upgrade message.
-    // if ($rev == '5.12.34') {
-    //   $postUpgradeMessage .= '<br /><br />' . ts("By default, CiviCRM now disables the ability to import directly from SQL. To use this feature, you must explicitly grant permission 'import SQL datasource'.");
-    // }
+    if ($rev == '5.17.alpha1') {
+      $postUpgradeMessage .= '<br /><br />' . ts("Any Smart groups created in 5.16.x using a realtive filter for the modified between field will need to be re-saved or re-created.");
+    }
   }
 
   /*
