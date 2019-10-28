@@ -58,14 +58,14 @@ class CiviTestSuite extends PHPUnit\Framework\TestSuite {
   /**
    *  Test suite setup.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     //print __METHOD__ . "\n";
   }
 
   /**
    *  Test suite teardown.
    */
-  protected function tearDown() {
+  protected function tearDown(): void {
     //print __METHOD__ . "\n";
   }
 
@@ -73,7 +73,7 @@ class CiviTestSuite extends PHPUnit\Framework\TestSuite {
    *  suppress failed test error issued by phpunit when it finds.
    *  a test suite with no tests
    */
-  public function testNothing() {
+  public function testNothing(): void {
   }
 
   /**

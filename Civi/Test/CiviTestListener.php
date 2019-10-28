@@ -2,6 +2,9 @@
 
 namespace Civi\Test;
 
+use PHPUnit\Framework\TestListener;
+use PHPUnit\Framework\TestListenerDefaultImplementation;
+
 if (class_exists('PHPUnit_Runner_Version') && version_compare(\PHPUnit_Runner_Version::id(), '6.0.0', '<')) {
   class_alias('Civi\Test\Legacy\CiviTestListener', 'Civi\Test\CiviTestListener');
   // Using an early return instead of a else does not work when using the PHPUnit phar due to some weird PHP behavior (the class
@@ -21,7 +24,10 @@ else {
    * @see HeadlessInterface
    * @see HookInterface
    */
-  class CiviTestListener extends \PHPUnit\Framework\BaseTestListener {
+  class CiviTestListener implements TestListener {
+
+    use TestListenerDefaultImplementation;
+
     /**
      * @var \CRM_Core_TemporaryErrorScope
      */
@@ -39,17 +45,17 @@ else {
      */
     private $tx;
 
-    public function startTestSuite(\PHPUnit\Framework\TestSuite $suite) {
+    public function startTestSuite(\PHPUnit\Framework\TestSuite $suite): void {
       $byInterface = $this->indexTestsByInterface($suite->tests());
       $this->validateGroups($byInterface);
       $this->autoboot($byInterface);
     }
 
-    public function endTestSuite(\PHPUnit\Framework\TestSuite $suite) {
+    public function endTestSuite(\PHPUnit\Framework\TestSuite $suite): void {
       $this->cache = [];
     }
 
-    public function startTest(\PHPUnit\Framework\Test $test) {
+    public function startTest(\PHPUnit\Framework\Test $test): void {
       if ($this->isCiviTest($test)) {
         error_reporting(E_ALL);
         $this->errorScope = \CRM_Core_TemporaryErrorScope::useException();
@@ -74,7 +80,7 @@ else {
       }
     }
 
-    public function endTest(\PHPUnit\Framework\Test $test, $time) {
+    public function endTest(\PHPUnit\Framework\Test $test, float $time): void {
       if ($test instanceof TransactionalInterface) {
         $this->tx->rollback()->commit();
         $this->tx = NULL;
