@@ -180,7 +180,7 @@ class CRM_Event_Form_SelfSvcTransfer extends CRM_Core_Form {
     $this->_contact_name = $displayName;
     $this->_contact_email = $email;
     $details = [];
-    $details = CRM_Event_BAO_Participant::participantDetails($this->_from_participant_id);
+    $details = CRM_Event_BAO_Participant::participantDetails($this->_from_participant_id, TRUE);
     $optionGroupId = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_OptionGroup', 'participant_role', 'id', 'name');
     $query = "
       SELECT cpst.name as status, cov.name as role, cp.fee_level, cp.fee_amount, cp.register_date, civicrm_event.start_date

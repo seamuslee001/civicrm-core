@@ -152,6 +152,7 @@ class CRM_Event_Form_ManageEvent_EventInfo extends CRM_Event_Form_ManageEvent {
 
     // add event title, make required if this is not a template
     $this->add('text', 'title', ts('Event Title'), $attributes['event_title'], !$this->_isTemplate);
+    $this->addField('event_frontend_title', ['entity' => 'Event']);
 
     $this->addSelect('event_type_id',
       ['onChange' => "CRM.buildCustomData( 'Event', this.value );"],

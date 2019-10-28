@@ -795,13 +795,15 @@ GROUP BY  participant.event_id
    *
    * @param int $participantId
    *   Id of the participant.
+   * @param bool $frontend
+   *   Is this being called from a frontend form.
    *
    * @return array
    *   associated array with sort_name and event title
    */
-  public static function participantDetails($participantId) {
+  public static function participantDetails($participantId, $frontend = FALSE) {
     $query = "
-SELECT civicrm_contact.sort_name as name, civicrm_event.title as title, civicrm_contact.id as cid
+SELECT civicrm_contact.sort_name as name, civicrm_event.title as title, civicrm_contact.id as cid, civicrm_event.frontend_title as frontend_title
 FROM   civicrm_participant
    LEFT JOIN civicrm_event   ON (civicrm_participant.event_id = civicrm_event.id)
    LEFT JOIN civicrm_contact ON (civicrm_participant.contact_id = civicrm_contact.id)
@@ -812,7 +814,12 @@ WHERE  civicrm_participant.id = {$participantId}
     $details = [];
     while ($dao->fetch()) {
       $details['name'] = $dao->name;
-      $details['title'] = $dao->title;
+      if ($frontend && !empty($dao->frontend_title)) {
+        $details['title'] = $dao->frontend_title;
+      }
+      else {
+        $details['title'] = $dao->title;
+      }
       $details['cid'] = $dao->cid;
     }
 

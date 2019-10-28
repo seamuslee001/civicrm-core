@@ -387,8 +387,8 @@ class CRM_Event_Form_Registration extends CRM_Core_Form {
     // The concept of contributeMode is deprecated.
     $this->_contributeMode = $this->get('contributeMode');
     $this->assign('contributeMode', $this->_contributeMode);
-
-    $this->setTitle($this->_values['event']['title']);
+    $title = !empty($this->_values['event']['frontend_title']) ? $this->_values['event']['frontend_title'] : $this->_values['event']['title'];
+    $this->setTitle($title);
 
     $this->assign('paidEvent', $this->_values['event']['is_monetary']);
 

@@ -67,6 +67,12 @@
         <span class="description"> {ts}Please use only alphanumeric, spaces, hyphens and dashes for event names.{/ts}
       </span></td>
     </tr>
+    <tr class="crm-event-manage-eventinfo-form-block-frontend-title">
+      <td class="label">{$form.event_frontend_title.label} {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_event' field='frontend_title' id=$eventID}{/if}</td>
+      <td>{$form.event_frontend_title.html}<br />
+        <span class="description"> {ts}Please use only alphanumeric, spaces, hyphens and dashes for event names.{/ts}
+      </span></td>
+    </tr>
     <tr class="crm-event-manage-eventinfo-form-block-summary">
       <td class="label">{$form.summary.label} {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_event' field='summary' id=$eventID}{/if}</td>
       <td>{$form.summary.html}</td>

@@ -1118,6 +1118,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
         $this->_params[] = $params;
       }
       $this->set('params', $this->_params);
+      $title = !empty($this->_values['event']['frontend_title']) ? $this->_values['event']['frontend_title'] : $this->_values['event']['title'];
       if ($this->_paymentProcessor &&
         // Actually we don't really need to check if it supports pre-approval - we could just call
         // it regardless as the function we call re-acts tot the rests of the preApproval call.
@@ -1130,7 +1131,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
         $this->set('contributeMode', 'express');
 
         // Send Event Name & Id in Params
-        $params['eventName'] = $this->_values['event']['title'];
+        $params['eventName'] = $title;
         $params['eventId'] = $this->_values['event']['id'];
 
         $params['cancelURL'] = CRM_Utils_System::url('civicrm/event/register',
@@ -1160,7 +1161,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
       }
     }
     else {
-      $params['description'] = ts('Online Event Registration') . ' ' . $this->_values['event']['title'];
+      $params['description'] = ts('Online Event Registration') . ' ' . $title;
 
       $this->_params = [];
       $this->_params[] = $params;

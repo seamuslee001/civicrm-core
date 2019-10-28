@@ -152,7 +152,7 @@ class CRM_Event_Form_SelfSvcUpdate extends CRM_Core_Form {
     $this->_contact_name = $displayName;
     $this->_contact_email = $email;
     $details = [];
-    $details = CRM_Event_BAO_Participant::participantDetails($this->_participant_id);
+    $details = CRM_Event_BAO_Participant::participantDetails($this->_participant_id, TRUE);
     $optionGroupId = CRM_Core_DAO::getFieldValue('CRM_Core_DAO_OptionGroup', 'participant_role', 'id', 'name');
     $contributionId = CRM_Core_DAO::getFieldValue('CRM_Event_DAO_ParticipantPayment', $this->_participant_id, 'contribution_id', 'participant_id');
     $this->assign('contributionId', $contributionId);

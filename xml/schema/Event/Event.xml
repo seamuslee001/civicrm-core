@@ -883,4 +883,20 @@
       <type>CheckBox</type>
     </html>
   </field>
+  <field>
+    <name>frontend_title</name>
+    <uniqueName>event_frontend_title</uniqueName>
+    <type>varchar</type>
+    <import>true</import>
+    <title>Public Event Title</title>
+    <headerPattern>/(event.)?frontend_title$/i</headerPattern>
+    <length>255</length>
+    <localizable>true</localizable>
+    <comment>Public Event Title (e.g. Fall Fundraiser Dinner)</comment>
+    <default>NULL</default>
+    <html>
+      <type>Text</type>
+    </html>
+    <add>5.20</add>
+  </field>
 </table>

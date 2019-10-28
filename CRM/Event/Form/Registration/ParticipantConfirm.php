@@ -101,9 +101,9 @@ class CRM_Event_Form_Registration_ParticipantConfirm extends CRM_Event_Form_Regi
     $params = ['id' => $this->_eventId];
     $values = [];
     CRM_Core_DAO::commonRetrieve('CRM_Event_DAO_Event', $params, $values,
-      ['title']
+      ['title', 'frontend_title']
     );
-
+    $title = !empty($values['frontend_title']) ? $values['frontend_title'] : $values['title'];
     $buttons = [];
     // only pending status class family able to confirm.
 
@@ -118,17 +118,17 @@ class CRM_Event_Form_Registration_ParticipantConfirm extends CRM_Event_Form_Regi
       $additonalIds = CRM_Event_BAO_Participant::getAdditionalParticipantIds($this->_participantId);
       $requireSpace = 1 + count($additonalIds);
       if ($emptySeats !== NULL && ($requireSpace > $emptySeats)) {
-        $statusMsg = ts("Oops, it looks like there are currently no available spaces for the %1 event.", [1 => $values['title']]);
+        $statusMsg = ts("Oops, it looks like there are currently no available spaces for the %1 event.", [1 => $title]);
       }
       else {
         if ($this->_cc == 'fail') {
           $statusMsg = '<div class="bold">' . ts('Your Credit Card transaction was not successful. No money has yet been charged to your card.') . '</div><div><br />' . ts('Click the "Confirm Registration" button to complete your registration in %1, or click "Cancel Registration" if you are no longer interested in attending this event.', [
-            1 => $values['title'],
+            1 => $title,
           ]) . '</div>';
         }
         else {
           $statusMsg = '<div class="bold">' . ts('Confirm your registration for %1.', [
-            1 => $values['title'],
+            1 => $title,
           ]) . '</div><div><br />' . ts('Click the "Confirm Registration" button to begin, or click "Cancel Registration" if you are no longer interested in attending this event.') . '</div>';
         }
         $buttons = array_merge($buttons, [
@@ -156,12 +156,12 @@ class CRM_Event_Form_Registration_ParticipantConfirm extends CRM_Event_Form_Regi
         ],
       ]);
       if (!$statusMsg) {
-        $statusMsg = ts('You can cancel your registration for %1 by clicking "Cancel Registration".', [1 => $values['title']]);
+        $statusMsg = ts('You can cancel your registration for %1 by clicking "Cancel Registration".', [1 => $title]);
       }
     }
     if (!$statusMsg) {
       $statusMsg = ts("Oops, it looks like your registration for %1 has already been cancelled.",
-        [1 => $values['title']]
+        [1 => $title]
       );
     }
     $this->assign('statusMsg', $statusMsg);

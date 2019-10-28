@@ -347,7 +347,8 @@ class CRM_Event_Page_EventInfo extends CRM_Core_Page {
     $this->assign('displayRecent', FALSE);
 
     // set page title = event title
-    CRM_Utils_System::setTitle($values['event']['title']);
+    $title = !empty($values['event']['frontend_title']) ? $values['event']['frontend_title'] : $values['event']['title'];
+    CRM_Utils_System::setTitle($title);
 
     $this->assign('event', $values['event']);
     if (isset($values['feeBlock'])) {

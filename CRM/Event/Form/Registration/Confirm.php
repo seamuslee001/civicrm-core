@@ -517,7 +517,8 @@ class CRM_Event_Form_Registration_Confirm extends CRM_Event_Form_Registration {
         CRM_Core_Session::singleton()->set('transaction.userID', $contactID);
       }
 
-      $value['description'] = ts('Online Event Registration') . ': ' . $this->_values['event']['title'];
+      $title = !empty($this->_values['event']['frontend_title']) ? $this->_values['event']['frontend_title'] : $this->_values['event']['title'];
+      $value['description'] = ts('Online Event Registration') . ': ' . $title;
       $value['accountingCode'] = CRM_Utils_Array::value('accountingCode',
         $this->_values['event']
       );
