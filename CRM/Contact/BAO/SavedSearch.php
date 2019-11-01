@@ -113,7 +113,6 @@ class CRM_Contact_BAO_SavedSearch extends CRM_Contact_DAO_SavedSearch {
           $op = key($value);
           $value = CRM_Utils_Array::value($op, $value);
           if (in_array($op, ['BETWEEN', '>=', '<='])) {
-            self::decodeRelativeFields($result, $id, $op, $value);
             unset($result[$element]);
             continue;
           }
@@ -435,59 +434,6 @@ LEFT JOIN civicrm_email ON (contact_a.id = civicrm_email.contact_id AND civicrm_
       if (!empty($formValues[$element])) {
         $queryParams[] = [$element, '=', $formValues[$element], 0, 0];
       }
-    }
-  }
-
-  /**
-   * Decode relative custom fields (converted by CRM_Contact_BAO_Query->convertCustomRelativeFields(...))
-   *  into desired formValues
-   *
-   * @param array $formValues
-   * @param string $fieldName
-   * @param string $op
-   * @param array|string|int $value
-   */
-  public static function decodeRelativeFields(&$formValues, $fieldName, $op, $value) {
-    // check if its a custom date field, if yes then 'searchDate' format the value
-    $isCustomDateField = CRM_Contact_BAO_Query::isCustomDateField($fieldName);
-
-    // select date range as default
-    if ($isCustomDateField) {
-      if (array_key_exists('relative_dates', $formValues) && array_key_exists($fieldName, $formValues['relative_dates'])) {
-        $formValues[$fieldName . '_relative'] = $formValues['relative_dates'][$fieldName];
-      }
-      else {
-        $formValues[$fieldName . '_relative'] = 0;
-      }
-    }
-    switch ($op) {
-      case 'BETWEEN':
-        if ($isCustomDateField) {
-          list($formValues[$fieldName . '_from'], $formValues[$fieldName . '_from_time']) = CRM_Utils_Date::setDateDefaults($value[0], 'searchDate');
-          list($formValues[$fieldName . '_to'], $formValues[$fieldName . '_to_time']) = CRM_Utils_Date::setDateDefaults($value[1], 'searchDate');
-        }
-        else {
-          list($formValues[$fieldName . '_from'], $formValues[$fieldName . '_to']) = $value;
-        }
-        break;
-
-      case '>=':
-        if ($isCustomDateField) {
-          list($formValues[$fieldName . '_from'], $formValues[$fieldName . '_from_time']) = CRM_Utils_Date::setDateDefaults($value, 'searchDate');
-        }
-        else {
-          $formValues[$fieldName . '_from'] = $value;
-        }
-        break;
-
-      case '<=':
-        if ($isCustomDateField) {
-          list($formValues[$fieldName . '_to'], $formValues[$fieldName . '_to_time']) = CRM_Utils_Date::setDateDefaults($value, 'searchDate');
-        }
-        else {
-          $formValues[$fieldName . '_to'] = $value;
-        }
-        break;
     }
   }
 

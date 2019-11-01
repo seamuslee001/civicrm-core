@@ -1684,14 +1684,6 @@ class CRM_Contact_BAO_Query {
           }
         }
       }
-      elseif (substr($id, 0, 7) == 'custom_'
-        &&  (
-          substr($id, -5, 5) == '_from'
-          || substr($id, -3, 3) == '_to'
-        )
-      ) {
-        self::convertCustomRelativeFields($formValues, $params, $values, $id);
-      }
       elseif (
         !in_array($id, $nonLegacyDateFields) && (
           preg_match('/_date_relative$/', $id))
@@ -4714,65 +4706,6 @@ civicrm_relationship.start_date > {$today}
     if (substr($parameterName, -3, 3) == '_to') {
       return substr($parameterName, 0, strpos($parameterName, '_to'));
     }
-  }
-
-  /**
-   * Convert submitted values for relative custom fields to query object format.
-   *
-   * The query will support the sqlOperator format so convert to that format.
-   *
-   * @param array $formValues
-   *   Submitted values.
-   * @param array $params
-   *   Converted parameters for the query object.
-   * @param string $values
-   *   Submitted value.
-   * @param string $fieldName
-   *   Submitted field name. (Matches form field not DB field.)
-   */
-  protected static function convertCustomRelativeFields(&$formValues, &$params, $values, $fieldName) {
-    if (empty($values)) {
-      // e.g we might have relative set & from & to empty. The form flow is a bit funky &
-      // this function gets called again after they fields have been converted which can get ugly.
-      return;
-    }
-    $customFieldName = self::getCustomFieldName($fieldName);
-
-    if (substr($fieldName, -9, 9) == '_relative') {
-      list($from, $to) = CRM_Utils_Date::getFromTo($values, NULL, NULL);
-    }
-    else {
-      if ($fieldName == $customFieldName . '_to' && CRM_Utils_Array::value($customFieldName . '_from', $formValues)) {
-        // Both to & from are set. We only need to acton one, choosing from.
-        return;
-      }
-
-      $from = CRM_Utils_Array::value($customFieldName . '_from', $formValues, NULL);
-      $to = CRM_Utils_Array::value($customFieldName . '_to', $formValues, NULL);
-
-      if (self::isCustomDateField($customFieldName)) {
-        list($from, $to) = CRM_Utils_Date::getFromTo(NULL, $from, $to);
-      }
-    }
-
-    if ($from) {
-      if ($to) {
-        $relativeFunction = ['BETWEEN' => [$from, $to]];
-      }
-      else {
-        $relativeFunction = ['>=' => $from];
-      }
-    }
-    else {
-      $relativeFunction = ['<=' => $to];
-    }
-    $params[] = [
-      $customFieldName,
-      '=',
-      $relativeFunction,
-      0,
-      0,
-    ];
   }
 
   /**
