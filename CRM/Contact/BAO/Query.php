@@ -4682,50 +4682,6 @@ civicrm_relationship.start_date > {$today}
   }
 
   /**
-   * Get the actual custom field name by stripping off the appended string.
-   *
-   * The string could be _relative, _from, or _to
-   *
-   * @todo use metadata rather than convention to do this.
-   *
-   * @param string $parameterName
-   *   The name of the parameter submitted to the form.
-   *   e.g
-   *   custom_3_relative
-   *   custom_3_from
-   *
-   * @return string
-   */
-  public static function getCustomFieldName($parameterName) {
-    if (substr($parameterName, -5, 5) == '_from') {
-      return substr($parameterName, 0, strpos($parameterName, '_from'));
-    }
-    if (substr($parameterName, -9, 9) == '_relative') {
-      return substr($parameterName, 0, strpos($parameterName, '_relative'));
-    }
-    if (substr($parameterName, -3, 3) == '_to') {
-      return substr($parameterName, 0, strpos($parameterName, '_to'));
-    }
-  }
-
-  /**
-   * Are we dealing with custom field of type date.
-   *
-   * @param $fieldName
-   *
-   * @return bool
-   */
-  public static function isCustomDateField($fieldName) {
-    if (($customFieldID = CRM_Core_BAO_CustomField::getKeyID($fieldName)) == FALSE) {
-      return FALSE;
-    }
-    if ('Date' == civicrm_api3('CustomField', 'getvalue', ['id' => $customFieldID, 'return' => 'data_type'])) {
-      return TRUE;
-    }
-    return FALSE;
-  }
-
-  /**
    * Has this field already been reformatting to Query object syntax.
    *
    * The form layer passed formValues to this function in preProcess & postProcess. Reason unknown. This seems

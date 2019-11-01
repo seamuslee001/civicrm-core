@@ -168,16 +168,6 @@ class CRM_Contact_BAO_SavedSearch extends CRM_Contact_DAO_SavedSearch {
           }
         }
       }
-      if (substr($element, 0, 7) == 'custom_' &&
-        (substr($element, -5, 5) == '_from' || substr($element, -3, 3) == '_to')
-      ) {
-        // Ensure the _relative field is set if from or to are set to ensure custom date
-        // fields with 'from' or 'to' values are displayed when the are set in the smart group
-        // being loaded. (CRM-17116)
-        if (!isset($result[CRM_Contact_BAO_Query::getCustomFieldName($element) . '_relative'])) {
-          $result[CRM_Contact_BAO_Query::getCustomFieldName($element) . '_relative'] = 0;
-        }
-      }
       // check to see if we need to convert the old privacy array
       // CRM-9180
       if (!empty($result['privacy'])) {
