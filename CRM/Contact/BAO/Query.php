@@ -580,7 +580,21 @@ class CRM_Contact_BAO_Query {
 
     $this->selectClause($apiEntity);
     $isForcePrimaryOnly = !empty($apiEntity);
+    if (!empty($this->_cfIDs)) {
+      // @todo This function is the select function but instead of running 'select' it
+      // is running the whole query.
+      $this->_customQuery = new CRM_Core_BAO_CustomQuery($this->_cfIDs, TRUE, $this->_locationSpecificCustomFields);
+      $this->_customQuery->query();
+      $this->_select = array_merge($this->_select, $this->_customQuery->_select);
+      $this->_element = array_merge($this->_element, $this->_customQuery->_element);
+      $this->_options = $this->_customQuery->_options;
+    }
     $this->_whereClause = $this->whereClause($isForcePrimaryOnly);
+    if (!empty($this->_cfIDs)) {
+      $this->_tables = array_merge($this->_tables, $this->_customQuery->_tables);
+      $this->_whereTables = array_merge($this->_whereTables, $this->_customQuery->_whereTables);
+    }
+
     if (array_key_exists('civicrm_contribution', $this->_whereTables)) {
       $component = 'contribution';
     }
@@ -1029,18 +1043,6 @@ class CRM_Contact_BAO_Query {
     CRM_Core_Component::alterQuery($this, 'select');
 
     CRM_Contact_BAO_Query_Hook::singleton()->alterSearchQuery($this, 'select');
-
-    if (!empty($this->_cfIDs)) {
-      // @todo This function is the select function but instead of running 'select' it
-      // is running the whole query.
-      $this->_customQuery = new CRM_Core_BAO_CustomQuery($this->_cfIDs, TRUE, $this->_locationSpecificCustomFields);
-      $this->_customQuery->query();
-      $this->_select = array_merge($this->_select, $this->_customQuery->_select);
-      $this->_element = array_merge($this->_element, $this->_customQuery->_element);
-      $this->_tables = array_merge($this->_tables, $this->_customQuery->_tables);
-      $this->_whereTables = array_merge($this->_whereTables, $this->_customQuery->_whereTables);
-      $this->_options = $this->_customQuery->_options;
-    }
   }
 
   /**
@@ -2185,7 +2187,8 @@ class CRM_Contact_BAO_Query {
         $realFieldName = str_replace(['_high', '_low'], '', $name);
         if (isset($this->_fields[$realFieldName])) {
           $field = $this->_fields[str_replace(['_high', '_low'], '', $realFieldName)];
-          $this->dateQueryBuilder($values, $field['table_name'], $realFieldName, $field['name'], $field['title']);
+          $columnName = $field['column_name'] ?? $field['name'];
+          $this->dateQueryBuilder($values, $field['table_name'], $realFieldName, $columnName, $field['title']);
         }
         return;
       }
