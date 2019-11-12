@@ -143,6 +143,11 @@ WHERE  email = %2
     $mailing_id = civicrm_api3('MailingJob', 'getvalue', ['id' => $job_id, 'return' => 'mailing_id']);
     $mailing_type = CRM_Core_DAO::getFieldValue('CRM_Mailing_DAO_Mailing', $mailing_id, 'mailing_type', 'id');
 
+    $groupObject = new CRM_Contact_BAO_Group();
+    $group = $groupObject->tableName();
+    $mailingObject = new CRM_Mailing_BAO_Mailing();
+    $mailing = $mailingObject->tableName();
+
     // We need a mailing id that points to the mailing that defined the recipients.
     // This is usually just the passed-in mailing_id, however in the case of AB
     // tests, it's the variant 'A' one.
@@ -185,7 +190,7 @@ WHERE  email = %2
     $mailings = [];
 
     while ($do->fetch()) {
-      if ($do->entity_table == 'civicrm_group') {
+      if ($do->entity_table === $group) {
         if ($do->group_type == 'Base') {
           $base_groups[$do->entity_id] = NULL;
         }
@@ -193,7 +198,7 @@ WHERE  email = %2
           $groups[$do->entity_id] = NULL;
         }
       }
-      elseif ($do->entity_table == 'civicrm_mailing') {
+      elseif ($do->entity_table === $mailing) {
         $mailings[] = $do->entity_id;
       }
     }
@@ -212,10 +217,10 @@ WHERE  email = %2
       $mailings = [];
 
       while ($do->fetch()) {
-        if ($do->entity_table == 'civicrm_group') {
+        if ($do->entity_table === $group) {
           $groups[$do->entity_id] = TRUE;
         }
-        elseif ($do->entity_table == 'civicrm_mailing') {
+        elseif ($do->entity_table === $mailing) {
           $mailings[] = $do->entity_id;
         }
       }

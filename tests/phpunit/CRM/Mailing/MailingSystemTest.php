@@ -72,6 +72,10 @@ class CRM_Mailing_MailingSystemTest extends CRM_Mailing_BaseMailingSystemTest {
   }
 
   public function tearDown() {
+    global $dbLocale;
+    if ($dbLocale) {
+      CRM_Core_I18n_Schema::makeSinglelingual('en_US');
+    }
     parent::tearDown();
     $this->assertNotEmpty($this->counts['hook_alterMailParams']);
   }
@@ -130,6 +134,10 @@ class CRM_Mailing_MailingSystemTest extends CRM_Mailing_BaseMailingSystemTest {
     ], 1);
   }
 
+  public function multiLingual() {
+    return [[0],[1]];
+  }
+
   /**
    * - unsubscribe used dodgy SQL that only checked half of the polymorphic
    *   relationship in mailing_group, meaning it could match 'mailing 123'
@@ -145,9 +153,10 @@ class CRM_Mailing_MailingSystemTest extends CRM_Mailing_BaseMailingSystemTest {
    * - in certain situations (which I have not been able to replicate in this
    *   test) it caused the unsubscribe to fail to find *any* groups to unsubscribe
    *   people from, thereby breaking the unsubscribe.
+   * @dataProvider multiLingual
    *
    */
-  public function testGitLabIssue1108() {
+  public function testGitLabIssue1108($isMultiLingual) {
 
     // We need to make sure the mailing IDs are higher than the groupIDs.
     // We do this by adding mailings until the mailing.id value is at least 10
@@ -155,6 +164,9 @@ class CRM_Mailing_MailingSystemTest extends CRM_Mailing_BaseMailingSystemTest {
     // Note that creating a row in a transaction then rolling back the
     // transaction still increments the AUTO_INCREMENT counter for the table.
     // (If this behaviour ever changes we throw an exception.)
+    if ($isMultiLingual) {
+      $this->enableMultilingual();
+    }
     $max_group_id = CRM_Core_DAO::singleValueQuery("SELECT MAX(id) FROM civicrm_group");
     $max_mailing_id = 0;
     while ($max_mailing_id < $max_group_id + 10) {
