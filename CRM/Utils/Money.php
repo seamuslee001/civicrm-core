@@ -96,21 +96,7 @@ class CRM_Utils_Money {
       CRM_Core_Error::deprecatedWarning('Passing empty currency to CRM_Utils_Money::format is deprecated if you need it for display without currency call CRM_Utils_Money::formatLocaleNumericRounded');
     }
 
-    $amount = self::formatNumericByFormat($amount, $valueFormat);
-    // If it contains tags, means that HTML was passed and the
-    // amount is already converted properly,
-    // so don't mess with it again.
-    // @todo deprecate handling for the html tags because .... WTF
-    if (strpos($amount, '<') === FALSE) {
-      $amount = self::replaceCurrencySeparators($amount);
-    }
-
-    $replacements = [
-      '%a' => $amount,
-      '%C' => $currency,
-      '%c' => CRM_Utils_Array::value($currency, self::$_currencySymbols, $currency),
-    ];
-    return strtr($format, $replacements);
+    return self::formatLocaleMoney($amount, $currency, $valueFormat, $format);
   }
 
   /**
@@ -299,8 +285,11 @@ class CRM_Utils_Money {
    * into easily understood functions / variables and handling separator conversions and
    * rounding.
    *
+   * note that this will return a US formatted number e.g. even if the site is in french language it will return in the format of 1,234.56.
+   * The default value format amount will return the format according to the locale international currency format.
+   *
    * @param string $amount
-   * @param string $valueFormat
+   * @param string $valueFormat Format appears to likely be %!i
    *
    * @return string
    */
@@ -310,10 +299,54 @@ class CRM_Utils_Money {
     if (is_numeric($amount) && function_exists('money_format')) {
       $lc = setlocale(LC_MONETARY, 0);
       setlocale(LC_MONETARY, 'en_US.utf8', 'en_US', 'en_US.utf8', 'en_US', 'C');
+      // Generally this is returning a float amount in the format of 1,299.59 without the currency because of the format having the ! after the %.
       $amount = money_format($valueFormat, $amount);
       setlocale(LC_MONETARY, $lc);
     }
     return $amount;
+  }
+
+  /**
+   * Format a value into a currency number based on the current locale of the site
+   * @param string $amount
+   * @param string $currency
+   * @param string $valueFormat - Legacy Money Value format should be removed in a future version
+   * @param string $moneyFormat
+   * 
+   * @return string
+   */
+  protected static function formatLocaleMoney($amount, $currency, $valueFormat, $moneyFormat): string {
+    if (!extension_loaded('intl')) {
+      self::missingIntlNotice();
+      return self::legacyFormatLocaleMoney($amount, $currency, $valueFormat, $moneyFormat);
+    }
+    if ($moneyFormat !== '%c %a' && $moneyFormat !== '%a') {
+      CRM_Core_Error::deprecatedWarning('Usage of a customised Monetary Amount Display is deprecated please report this on GitLab with the relevant moneyValueFormat you use.');
+      return self::legacyFormatLocaleMoney($amount, $currency, $valueFormat, $moneyFormat);
+    }
+    $numberOfPlaces = $moneyFormat === '%a' ? strlen($amount) : self::getCurrencyPrecision($currency);
+    $money = Money::of($amount, CRM_Core_Config::singleton()->defaultCurrency, new CustomContext($numberOfPlaces), RoundingMode::CEILING);
+    $formatter = new \NumberFormatter(CRM_Core_I18n::getLocale(), NumberFormatter::CURRENCY);
+    $formatter->setSymbol(\NumberFormatter::CURRENCY_SYMBOL, $moneyFormat === '%a' ? '' : CRM_Utils_Array::value($currency, self::$_currencySymbols, $currency));
+    $formatter->setAttribute(\NumberFormatter::MIN_FRACTION_DIGITS, $numberOfPlaces);
+    return $money->formatWith($formatter);
+  }
+
+  private static function legacyFormatLocaleMoney($amount, $currency, $valueFormat, $moneyFormat): string {
+    $amount = self::formatNumericByFormat($amount, $valueFormat);
+    // If it contains tags, means that HTML was passed and the
+    // amount is already converted properly,
+    // so don't mess with it again.
+    // @todo deprecate handling for the html tags because .... WTF
+    if (strpos($amount, '<') === FALSE) {
+      $amount = self::replaceCurrencySeparators($amount);
+    }
+    $replacements = [
+      '%a' => $amount,
+      '%C' => $currency,
+      '%c' => CRM_Utils_Array::value($currency, self::$_currencySymbols, $currency),
+    ];
+    return strtr($format, $replacements);
   }
 
   /**

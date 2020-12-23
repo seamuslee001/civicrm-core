@@ -183,6 +183,11 @@ class CiviUnitTestCase extends PHPUnit\Framework\TestCase {
   public $setupIDs = [];
 
   /**
+   * @var CRM_Core_I18n
+   */
+  protected $i18n;
+
+  /**
    *  Constructor.
    *
    *  Because we are overriding the parent class constructor, we
@@ -307,7 +312,7 @@ class CiviUnitTestCase extends PHPUnit\Framework\TestCase {
     return TRUE;
   }
 
-  public static function setUpBeforeClass() {
+  public static function setUpBeforeClass(): void {
     static::_populateDB(TRUE);
 
     // also set this global hack
@@ -317,7 +322,7 @@ class CiviUnitTestCase extends PHPUnit\Framework\TestCase {
   /**
    *  Common setup functions for all unit tests.
    */
-  protected function setUp() {
+  protected function setUp(): void {
     $session = CRM_Core_Session::singleton();
     $session->set('userID', NULL);
 
@@ -463,12 +468,16 @@ class CiviUnitTestCase extends PHPUnit\Framework\TestCase {
   /**
    *  Common teardown functions for all unit tests.
    */
-  protected function tearDown() {
+  protected function tearDown(): void {
     $this->_apiversion = 3;
     $this->resetLabels();
 
     error_reporting(E_ALL & ~E_NOTICE);
+    if (!empty($this->i18n)) {
+      $this->i18n->setLocale('en_US');
+    }
     CRM_Utils_Hook::singleton()->reset();
+
     if ($this->hookClass) {
       $this->hookClass->reset();
     }
@@ -501,7 +510,7 @@ class CiviUnitTestCase extends PHPUnit\Framework\TestCase {
    *
    * @throws \CRM_Core_Exception
    */
-  protected function assertPostConditions() {
+  protected function assertPostConditions(): void {
     if ($this->isLocationTypesOnPostAssert) {
       $this->assertLocationValidity();
     }
@@ -3328,6 +3337,10 @@ VALUES
   protected function setCurrencySeparators($thousandSeparator) {
     Civi::settings()->set('monetaryThousandSeparator', $thousandSeparator);
     Civi::settings()->set('monetaryDecimalPoint', ($thousandSeparator === ',' ? '.' : ','));
+    if ($thousandSeparator === ',') {
+      $this->i18n = CRM_Core_I18n::singleton();
+      $this->i18n->setLocale('fr_FR');
+    }
   }
 
   /**

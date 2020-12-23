@@ -768,8 +768,8 @@ class api_v3_ContributionTest extends CiviUnitTestCase {
       ['-10.010,4345619', '.', ',', 'USD', TRUE],
       ['10.0104345619', '.', ',', 'USD', TRUE],
       ['-0', '.', ',', 'USD', TRUE],
-      ['-.1', '.', ',', 'USD', TRUE],
-      ['.1', '.', ',', 'USD', TRUE],
+      ['-0.1', '.', ',', 'USD', TRUE],
+      ['0.1', '.', ',', 'USD', TRUE],
       // Test currency symbols too, default locale uses $, so if we wanted to test others we'd need to reconfigure locale
       ['$1,234,567.89', '.', ',', 'USD', TRUE],
       ['-$1,234,567.89', '.', ',', 'USD', TRUE],
@@ -3680,7 +3680,7 @@ class api_v3_ContributionTest extends CiviUnitTestCase {
       'receipt_from_email' => 'api@civicrm.org',
     ]);
     $mut->checkMailLog([
-      '$ 100.00',
+      '$100.00',
       'Contribution Information',
     ], [
       'Event',
