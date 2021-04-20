@@ -111,6 +111,11 @@ class CiviEventDispatcher implements EventDispatcherInterface {
    * @inheritDoc
    */
   public function dispatch($eventName, Event $event = NULL) {
+    \CRM_Core_Error::deprecatedFunctionWarning('use dispatchEvent function');
+    $this->dispatchEvent($eventName, $event);
+  }
+
+  public function dispatchEvent($eventName, Event $event = NULL) {
     // Dispatch policies add systemic overhead and (normally) should not be evaluated. JNZ.
     if (is_null($event)) {
       $event = new GenericHookEvent();

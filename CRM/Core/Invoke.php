@@ -64,7 +64,7 @@ class CRM_Core_Invoke {
       // may exit
       self::hackMenuRebuild($args);
       self::init($args);
-      Civi::dispatcher()->dispatch('civi.invoke.auth', \Civi\Core\Event\GenericHookEvent::create(['args' => $args]));
+      Civi::dispatcher()->dispatchEvent('civi.invoke.auth', \Civi\Core\Event\GenericHookEvent::create(['args' => $args]));
       $item = self::getItem($args);
       return self::runItem($item);
     }

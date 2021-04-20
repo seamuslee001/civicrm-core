@@ -61,7 +61,7 @@ class CRM_Core_Region implements CRM_Core_Resources_CollectionInterface, CRM_Cor
       $this->snippets['default']['markup'] = $default;
     }
 
-    Civi::dispatcher()->dispatch('civi.region.render', \Civi\Core\Event\GenericHookEvent::create(['region' => $this]));
+    Civi::dispatcher()->dispatchEvent('civi.region.render', \Civi\Core\Event\GenericHookEvent::create(['region' => $this]));
 
     $this->sort();
 

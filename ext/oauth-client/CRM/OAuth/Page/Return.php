@@ -25,7 +25,7 @@ class CRM_OAuth_Page_Return extends CRM_Core_Page {
         'uri' => $error['uri'] ?? NULL,
         'state' => $state,
       ]);
-      Civi::dispatcher()->dispatch('hook_civicrm_oauthReturnError', $event);
+      Civi::dispatcher()->dispatchEvent('hook_civicrm_oauthReturnError', $event);
 
       Civi::log()->info('OAuth returned error', [
         'error' => $error,
@@ -50,7 +50,7 @@ class CRM_OAuth_Page_Return extends CRM_Core_Page {
         'token' => $tokenRecord,
         'nextUrl' => &$nextUrl,
       ]);
-      Civi::dispatcher()->dispatch('hook_civicrm_oauthReturn', $event);
+      Civi::dispatcher()->dispatchEvent('hook_civicrm_oauthReturn', $event);
       if ($nextUrl !== NULL) {
         CRM_Utils_System::redirect($nextUrl);
       }

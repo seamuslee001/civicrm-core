@@ -53,7 +53,7 @@ class SchemaMapBuilder {
     $this->loadTables($map);
 
     $event = new SchemaMapBuildEvent($map);
-    $this->dispatcher->dispatch(Events::SCHEMA_MAP_BUILD, $event);
+    $this->dispatcher->dispatchEvent(Events::SCHEMA_MAP_BUILD, $event);
 
     return $map;
   }

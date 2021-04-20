@@ -34,7 +34,7 @@ class CRM_Core_BAO_ActionSchedule extends CRM_Core_DAO_ActionSchedule {
 
     if ($_action_mapping === NULL) {
       $event = \Civi::dispatcher()
-        ->dispatch('civi.actionSchedule.getMappings',
+        ->dispatchEvent('civi.actionSchedule.getMappings',
           new \Civi\ActionSchedule\Event\MappingRegisterEvent());
       $_action_mapping = $event->getMappings();
     }
@@ -514,7 +514,7 @@ FROM civicrm_action_schedule cas
     }
 
     \Civi::dispatcher()
-      ->dispatch(
+      ->dispatchEvent(
         'civi.actionSchedule.prepareMailingQuery',
         new \Civi\ActionSchedule\Event\MailingQueryEvent($actionSchedule, $mapping, $select)
       );

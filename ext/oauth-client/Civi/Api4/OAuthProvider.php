@@ -21,7 +21,7 @@ class OAuthProvider extends Generic\AbstractEntity {
         $event = GenericHookEvent::create([
           'providers' => &$providers,
         ]);
-        \Civi::dispatcher()->dispatch('hook_civicrm_oauthProviders', $event);
+        \Civi::dispatcher()->dispatchEvent('hook_civicrm_oauthProviders', $event);
 
         foreach ($providers as $name => &$provider) {
           if ($provider['name'] !== $name) {

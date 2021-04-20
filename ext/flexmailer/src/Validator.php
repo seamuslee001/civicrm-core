@@ -63,7 +63,7 @@ class Validator {
    */
   public function run($context) {
     $checkSendable = new CheckSendableEvent($context);
-    $this->dispatcher->dispatch(static::EVENT_CHECK_SENDABLE, $checkSendable);
+    $this->dispatcher->dispatchEvent(static::EVENT_CHECK_SENDABLE, $checkSendable);
     return $checkSendable->getErrors();
   }
 

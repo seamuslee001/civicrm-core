@@ -164,7 +164,7 @@ abstract class CRM_Utils_Hook {
       $names,
       [&$arg1, &$arg2, &$arg3, &$arg4, &$arg5, &$arg6]
     );
-    \Civi::dispatcher()->dispatch('hook_' . $fnSuffix, $event);
+    \Civi::dispatcher()->dispatchEvent('hook_' . $fnSuffix, $event);
     return $event->getReturnValues();
   }
 
@@ -341,7 +341,7 @@ abstract class CRM_Utils_Hook {
    */
   public static function pre($op, $objectName, $id, &$params = []) {
     $event = new \Civi\Core\Event\PreEvent($op, $objectName, $id, $params);
-    \Civi::dispatcher()->dispatch('hook_civicrm_pre', $event);
+    \Civi::dispatcher()->dispatchEvent('hook_civicrm_pre', $event);
     return $event->getReturnValues();
   }
 
@@ -363,7 +363,7 @@ abstract class CRM_Utils_Hook {
    */
   public static function post($op, $objectName, $objectId, &$objectRef = NULL) {
     $event = new \Civi\Core\Event\PostEvent($op, $objectName, $objectId, $objectRef);
-    \Civi::dispatcher()->dispatch('hook_civicrm_post', $event);
+    \Civi::dispatcher()->dispatchEvent('hook_civicrm_post', $event);
     return $event->getReturnValues();
   }
 
@@ -393,7 +393,7 @@ abstract class CRM_Utils_Hook {
    */
   public static function postCommit($op, $objectName, $objectId, $objectRef = NULL) {
     $event = new \Civi\Core\Event\PostEvent($op, $objectName, $objectId, $objectRef);
-    \Civi::dispatcher()->dispatch('hook_civicrm_postCommit', $event);
+    \Civi::dispatcher()->dispatchEvent('hook_civicrm_postCommit', $event);
     return $event->getReturnValues();
   }
 
@@ -2134,7 +2134,7 @@ abstract class CRM_Utils_Hook {
    */
   public static function unhandledException($exception, $request = NULL) {
     $event = new \Civi\Core\Event\UnhandledExceptionEvent($exception, self::$_nullObject);
-    \Civi::dispatcher()->dispatch('hook_civicrm_unhandled_exception', $event);
+    \Civi::dispatcher()->dispatchEvent('hook_civicrm_unhandled_exception', $event);
   }
 
   /**
@@ -2169,7 +2169,7 @@ abstract class CRM_Utils_Hook {
     $event = \Civi\Core\Event\GenericHookEvent::create([
       'inspector' => $inspector,
     ]);
-    Civi::dispatcher()->dispatch('hook_civicrm_eventDefs', $event);
+    Civi::dispatcher()->dispatchEvent('hook_civicrm_eventDefs', $event);
   }
 
   /**
@@ -2373,7 +2373,7 @@ abstract class CRM_Utils_Hook {
     $event = \Civi\Core\Event\GenericHookEvent::create([
       'data' => &$data,
     ]);
-    Civi::dispatcher()->dispatch('hook_civicrm_alterResourceSettings', $event);
+    Civi::dispatcher()->dispatchEvent('hook_civicrm_alterResourceSettings', $event);
   }
 
   /**
@@ -2442,7 +2442,7 @@ abstract class CRM_Utils_Hook {
     $event = \Civi\Core\Event\GenericHookEvent::create([
       'angular' => $angular,
     ]);
-    Civi::dispatcher()->dispatch('hook_civicrm_alterAngular', $event);
+    Civi::dispatcher()->dispatchEvent('hook_civicrm_alterAngular', $event);
   }
 
   /**
@@ -2495,7 +2495,7 @@ abstract class CRM_Utils_Hook {
    */
   public static function caseChange(\Civi\CCase\Analyzer $analyzer) {
     $event = new \Civi\CCase\Event\CaseChangeEvent($analyzer);
-    \Civi::dispatcher()->dispatch('hook_civicrm_caseChange', $event);
+    \Civi::dispatcher()->dispatchEvent('hook_civicrm_caseChange', $event);
   }
 
   /**

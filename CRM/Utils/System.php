@@ -314,7 +314,7 @@ class CRM_Utils_System {
       'absolute' => $absolute,
       'isSSL' => $isSSL,
     ]);
-    Civi::dispatcher()->dispatch('hook_civicrm_alterExternUrl', $event);
+    Civi::dispatcher()->dispatchEvent('hook_civicrm_alterExternUrl', $event);
     return urldecode(CRM_Utils_Url::unparseUrl($event->url));
   }
 
@@ -1443,7 +1443,7 @@ class CRM_Utils_System {
     CRM_Core_Session::storeSessionObjects();
 
     if (Civi\Core\Container::isContainerBooted()) {
-      Civi::dispatcher()->dispatch('civi.core.exit');
+      Civi::dispatcher()->dispatchEvent('civi.core.exit');
     }
 
     $userSystem = CRM_Core_Config::singleton()->userSystem;

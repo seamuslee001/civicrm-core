@@ -617,7 +617,7 @@ class CRM_Core_DAO extends DB_DataObject {
       if ($hook) {
         $preEvent = new \Civi\Core\DAO\Event\PreUpdate($this);
         $preEvent->eventID = $eventID;
-        \Civi::dispatcher()->dispatch("civi.dao.preUpdate", $preEvent);
+        \Civi::dispatcher()->dispatchEvent("civi.dao.preUpdate", $preEvent);
       }
 
       $result = $this->update();
@@ -625,7 +625,7 @@ class CRM_Core_DAO extends DB_DataObject {
       if ($hook) {
         $event = new \Civi\Core\DAO\Event\PostUpdate($this, $result);
         $event->eventID = $eventID;
-        \Civi::dispatcher()->dispatch("civi.dao.postUpdate", $event);
+        \Civi::dispatcher()->dispatchEvent("civi.dao.postUpdate", $event);
       }
       $this->clearDbColumnValueCache();
     }
@@ -633,7 +633,7 @@ class CRM_Core_DAO extends DB_DataObject {
       if ($hook) {
         $preEvent = new \Civi\Core\DAO\Event\PreUpdate($this);
         $preEvent->eventID = $eventID;
-        \Civi::dispatcher()->dispatch("civi.dao.preInsert", $preEvent);
+        \Civi::dispatcher()->dispatchEvent("civi.dao.preInsert", $preEvent);
       }
 
       $result = $this->insert();
@@ -641,7 +641,7 @@ class CRM_Core_DAO extends DB_DataObject {
       if ($hook) {
         $event = new \Civi\Core\DAO\Event\PostUpdate($this, $result);
         $event->eventID = $eventID;
-        \Civi::dispatcher()->dispatch("civi.dao.postInsert", $event);
+        \Civi::dispatcher()->dispatchEvent("civi.dao.postInsert", $event);
       }
     }
     $this->free();
@@ -680,12 +680,12 @@ class CRM_Core_DAO extends DB_DataObject {
    */
   public function delete($useWhere = FALSE) {
     $preEvent = new \Civi\Core\DAO\Event\PreDelete($this);
-    \Civi::dispatcher()->dispatch("civi.dao.preDelete", $preEvent);
+    \Civi::dispatcher()->dispatchEvent("civi.dao.preDelete", $preEvent);
 
     $result = parent::delete($useWhere);
 
     $event = new \Civi\Core\DAO\Event\PostDelete($this, $result);
-    \Civi::dispatcher()->dispatch("civi.dao.postDelete", $event);
+    \Civi::dispatcher()->dispatchEvent("civi.dao.postDelete", $event);
     $this->free();
 
     $this->clearDbColumnValueCache();

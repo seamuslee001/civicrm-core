@@ -557,7 +557,7 @@ class CRM_Core_Config extends CRM_Core_Config_MagicMerge {
     }
 
     // OK, this looks new.
-    Civi::dispatcher()->dispatch('civi.core.install', new \Civi\Core\Event\SystemInstallEvent());
+    Civi::dispatcher()->dispatchEvent('civi.core.install', new \Civi\Core\Event\SystemInstallEvent());
     Civi::settings()->set('installed', 1);
   }
 

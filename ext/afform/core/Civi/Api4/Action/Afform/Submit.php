@@ -33,7 +33,7 @@ class Submit extends AbstractProcessor {
       }
     }
     $event = new AfformSubmitEvent($this->_afform, $this->_formDataModel, $this, $this->_formDataModel->getEntities(), $entityValues);
-    \Civi::dispatcher()->dispatch(self::EVENT_NAME, $event);
+    \Civi::dispatcher()->dispatchEvent(self::EVENT_NAME, $event);
     foreach ($event->entityValues as $entityType => $entities) {
       if (!empty($entities)) {
         throw new \API_Exception(sprintf("Failed to process entities (type=%s; name=%s)", $entityType, implode(',', array_keys($entities))));

@@ -183,7 +183,7 @@ class FlexMailer {
    */
   public function fireRun() {
     $event = new RunEvent($this->context);
-    $this->dispatcher->dispatch(self::EVENT_RUN, $event);
+    $this->dispatcher->dispatchEvent(self::EVENT_RUN, $event);
     return $event;
   }
 
@@ -193,7 +193,7 @@ class FlexMailer {
    */
   public function fireWalkBatches($onVisitBatch) {
     $event = new WalkBatchesEvent($this->context, $onVisitBatch);
-    $this->dispatcher->dispatch(self::EVENT_WALK, $event);
+    $this->dispatcher->dispatchEvent(self::EVENT_WALK, $event);
     return $event;
   }
 
@@ -209,7 +209,7 @@ class FlexMailer {
     }
 
     $event = new ComposeBatchEvent($this->context, $tasks);
-    $this->dispatcher->dispatch(self::EVENT_COMPOSE, $event);
+    $this->dispatcher->dispatchEvent(self::EVENT_COMPOSE, $event);
     return $event;
   }
 
@@ -219,7 +219,7 @@ class FlexMailer {
    */
   public function fireSendBatch($tasks) {
     $event = new SendBatchEvent($this->context, $tasks);
-    $this->dispatcher->dispatch(self::EVENT_SEND, $event);
+    $this->dispatcher->dispatchEvent(self::EVENT_SEND, $event);
     return $event;
   }
 
