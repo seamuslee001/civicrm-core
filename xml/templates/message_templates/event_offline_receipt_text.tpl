@@ -8,7 +8,7 @@
 
 {ts}You have been added to the WAIT LIST for this event.{/ts}
 
-{if $isPrimary}
+{if !empty($isPrimary)}
 {ts}If space becomes available you will receive an email with a link to a web page where you can complete your registration.{/ts}
 
 {/if}
@@ -19,7 +19,7 @@
 
 {ts}Your registration has been submitted.{/ts}
 
-{if $isPrimary}
+{if !empty($isPrimary)}
 {ts}Once your registration has been reviewed, you will receive an email with a link to a web page where you can complete the registration process.{/ts}
 
 {/if}
@@ -123,9 +123,9 @@
 
 {foreach from=$dataArray item=value key=priceset}
 {if $priceset || $priceset == 0}
-{$taxTerm} {$priceset|string_format:"%.2f"}%: {$value|crmMoney:$currency}
+{if isset($taxTerm)}{$taxTerm}{/if} {$priceset|string_format:"%.2f"}%: {$value|crmMoney:$currency}
 {else}
-{ts}No{/ts} {$taxTerm}: {$value|crmMoney:$currency}
+{ts}No{/ts} {if isset($taxTerm)}{$taxTerm}{/if}: {$value|crmMoney:$currency}
 {/if}
 {/foreach}
 {/if}

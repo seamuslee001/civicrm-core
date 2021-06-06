@@ -24,7 +24,7 @@
 
 {ts}Your registration has been submitted.{/ts}
 
-{if $isPrimary}
+{if !empty($isPrimary)}
 {ts}Once your registration has been reviewed, you will receive an email with a link to a web page where you can complete the registration process.{/ts}
 
 {/if}
@@ -106,7 +106,7 @@ You were registered by: {$payer.name}
 {if !empty($lineItem)}{foreach from=$lineItem item=value key=priceset}
 
 {if $value neq 'skip'}
-{if $isPrimary}
+{if !empty($isPrimary)}
 {if $lineItem|@count GT 1} {* Header for multi participant registration cases. *}
 {ts 1=$priceset+1}Participant %1{/ts} {$part.$priceset.info}
 
@@ -143,9 +143,9 @@ You were registered by: {$payer.name}
 
 {foreach from=$dataArray item=value key=priceset}
 {if $priceset || $priceset == 0}
-{$taxTerm} {$priceset|string_format:"%.2f"}%: {$value|crmMoney:$currency}
+{if isset($taxTerm)}{$taxTerm}{/if} {$priceset|string_format:"%.2f"}%: {$value|crmMoney:$currency}
 {else}
-{ts}No{/ts} {$taxTerm}: {$value|crmMoney:$currency}
+{ts}No{/ts} {if isset($taxTerm)}{$taxTerm}{/if}: {$value|crmMoney:$currency}
 {/if}
 {/foreach}
 {/if}

@@ -76,7 +76,7 @@
                   {ts}Membership Fee{/ts}
                 </th>
               </tr>
-              {if $formValues.contributionType_name}
+              {if !empty($formValues.contributionType_name)}
                 <tr>
                   <td {$labelStyle}>
                     {ts}Financial Type{/ts}
@@ -156,10 +156,10 @@
                   {foreach from=$dataArray item=value key=priceset}
                     <tr>
                       {if $priceset}
-                        <td>&nbsp;{$taxTerm} {$priceset|string_format:"%.2f"}%</td>
+                        <td>&nbsp;{if isset($taxTerm)}{$taxTerm}{/if} {$priceset|string_format:"%.2f"}%</td>
                         <td>&nbsp;{$value|crmMoney:$currency}</td>
                       {elseif  $priceset == 0}
-                        <td>&nbsp;{ts}No{/ts} {$taxTerm}</td>
+                        <td>&nbsp;{ts}No{/ts} {if isset($taxTerm)}{$taxTerm}{/if}</td>
                         <td>&nbsp;{$value|crmMoney:$currency}</td>
                       {/if}
                     </tr>

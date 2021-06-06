@@ -46,12 +46,14 @@
       </td>
      </tr>
      <tr>
-      <td {$labelStyle}>
-       {ts}Financial Type{/ts}
-      </td>
-      <td {$valueStyle}>
-       {$formValues.contributionType_name}
-      </td>
+      {if !empty($formValues.contributionType_name)}
+        <td {$labelStyle}>
+         {ts}Financial Type{/ts}
+        </td>
+        <td {$valueStyle}>
+         {$formValues.contributionType_name}
+        </td>
+      {/if}
      </tr>
 
      {if !empty($lineItem) and empty($is_quick_config)}
@@ -120,10 +122,10 @@
       {foreach from=$dataArray item=value key=priceset}
         <tr>
         {if $priceset ||  $priceset == 0 || $value != ''}
-          <td>&nbsp;{$taxTerm} {$priceset|string_format:"%.2f"}%</td>
+          <td>&nbsp;{if isset($taxTerm)}{$taxTerm}{/if} {$priceset|string_format:"%.2f"}%</td>
           <td>&nbsp;{$value|crmMoney:$currency}</td>
         {else}
-          <td>&nbsp;{ts}No{/ts} {$taxTerm}</td>
+          <td>&nbsp;{ts}No{/ts} {if isset($taxTerm)}{$taxTerm}{/if}</td>
           <td>&nbsp;{$value|crmMoney:$currency}</td>
         {/if}
         </tr>
