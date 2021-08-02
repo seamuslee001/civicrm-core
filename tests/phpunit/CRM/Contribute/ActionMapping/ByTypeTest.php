@@ -22,6 +22,13 @@
  */
 class CRM_Contribute_ActionMapping_ByTypeTest extends \Civi\ActionSchedule\AbstractMappingTest {
 
+  function tearDown(): void {
+    parent::tearDown();
+    $completedOption = $this->callAPISuccess('OptionValue', 'get', ['option_group_id' => 'contribution_status', 'name' => 'Completed']);
+    $this->callAPISuccess('OptionValue', 'create', ['id' => $completedOption['id'], 'label' => 'Completed']);
+    $this->callAPISuccess('System', 'flush', []);
+  }
+
   /**
    * Generate a list of test cases, where each is a distinct combination of
    * data, schedule-rules, and schedule results.
@@ -256,6 +263,9 @@ class CRM_Contribute_ActionMapping_ByTypeTest extends \Civi\ActionSchedule\Abstr
     $this->scheduleForAny();
     $this->startOnTime();
     $this->schedule->save();
+    $completedOption = $this->callAPISuccess('OptionValue', 'get', ['option_group_id' => 'contribution_status', 'name' => 'Completed']);
+    $this->callAPISuccess('OptionValue', 'create', ['id' => $completedOption['id'], 'label' => 'CContribution']);
+    $this->callAPISuccess('System', 'flush', []);
     $this->schedule->body_text = '
       first name = {contact.first_name}
       receive_date = {contribution.receive_date}
@@ -269,7 +279,7 @@ class CRM_Contribute_ActionMapping_ByTypeTest extends \Civi\ActionSchedule\Abstr
       'receive_date = February 1st, 2015 12:00 AM',
       'contribution status id = 1',
       'new style status = Completed',
-      'legacy style status = Completed',
+      'legacy style status = CContribution',
     ];
     $this->mut->checkMailLog($expected);
 
@@ -297,6 +307,9 @@ class CRM_Contribute_ActionMapping_ByTypeTest extends \Civi\ActionSchedule\Abstr
     foreach ($tokens as $token) {
       $this->assertEquals(CRM_Core_SelectValues::contributionTokens()['{contribution.' . $token . '}'], $processor->tokenNames[$token]);
     }
+    $completedOption = $this->callAPISuccess('OptionValue', 'get', ['option_group_id' => 'contribution_status', 'name' => 'Completed']);
+    $this->callAPISuccess('OptionValue', 'create', ['id' => $completedOption['id'], 'label' => 'Completed']);
+    $this->callAPISuccess('System', 'flush', []);
   }
 
 }
