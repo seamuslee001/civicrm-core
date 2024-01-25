@@ -60,7 +60,7 @@ class CRM_Mailing_Form_Unsubscribe extends CRM_Core_Form {
       throw new CRM_Core_Exception(ts("There was an error in your request"));
     }
 
-    list($displayName, $email) = CRM_Mailing_Event_BAO_MailingEventQueue::getContactInfo($queue_id);
+    [$displayName, $email] = CRM_Mailing_Event_BAO_MailingEventQueue::getContactInfo($queue_id);
     $this->assign('display_name', $displayName);
     $emailMasked = CRM_Utils_String::maskEmail($email);
     $this->assign('email_masked', $emailMasked);
