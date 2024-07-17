@@ -69,7 +69,7 @@
          <thead>
          <tr>
             {if $hasIcons}
-              <th></th>
+              <th><label class="sr-only">{ts}Icon{/ts}</label></th>
             {/if}
             {if $showComponent}
                 <th>{ts}Component{/ts}</th>
@@ -102,7 +102,7 @@
             {if $showIsDefault}<th>{ts}Default{/ts}</th>{/if}
             <th>{ts}Reserved{/ts}</th>
             <th>{ts}Enabled?{/ts}</th>
-            <th></th>
+            <th><label class="sr-only">{ts}Actions{/ts}</label></th>
           </tr>
           </thead>
           <tbody>
