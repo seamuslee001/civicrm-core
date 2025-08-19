@@ -58,7 +58,7 @@
 
         {if $gName eq 'custom_search'}
            <tr class="crm-admin-options-form-block-search_title">
-             <td class="label">{ts}Search Title{/ts}</td>
+             <td class="label">{ts}Search Title{/ts} {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_option_value' field='description' id=$id}{/if}</td>
              <td>{$form.description.html}<br />
                <span class="description">{ts}This title is displayed to users in the Custom Search listings.{/ts}</span>
              </td>
@@ -87,7 +87,7 @@
               </tr>
             {/if}
               <tr class="crm-admin-options-form-block-desciption">
-                <td class="label">{$form.description.label}</td>
+                <td class="label">{$form.description.label} {if $action == 2}{include file='CRM/Core/I18n/Dialog.tpl' table='civicrm_option_value' field='desciption' id=$id}{/if}</td>
                 <td>{$form.description.html}<br />
             {if $gName eq 'activity_type'}
                <span class="description">{ts}Description is included at the top of the activity edit and view pages for this type of activity.{/ts}</span>
