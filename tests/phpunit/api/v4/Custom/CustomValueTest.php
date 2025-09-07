@@ -332,6 +332,8 @@ class CustomValueTest extends Api4TestBase {
       'defaults' => ['custom_group_id.name' => 'test_nulls'],
       'records' => [
         ['name' => 'string', 'html_type' => 'Text', 'data_type' => 'String'],
+        ['name' => 'default_value_string', 'html_type' => 'Text', 'data_type' => 'String', 'default_value' => 'test'],
+        ['name' => 'default_value_required_string', 'html_type' => 'Text', 'data_type' => 'String', 'default_value' => 'test', 'is_required' => TRUE],
         ['name' => 'select', 'html_type' => 'Select', 'data_type' => 'String', 'serialize' => 1, 'option_values' => ['a' => 'A', 'b' => 'B']],
         ['name' => 'int', 'html_type' => 'Text', 'data_type' => 'Int'],
         ['name' => 'float', 'html_type' => 'Text', 'data_type' => 'Float'],
@@ -348,6 +350,8 @@ class CustomValueTest extends Api4TestBase {
 
     $cid = $this->createTestRecord('Contact', [
       'test_nulls.string' => NULL,
+      'test_nulls.default_value_string' => NULL,
+      'test_nulls.default_value_required_string' => NULL,
       'test_nulls.select' => NULL,
       'test_nulls.int' => NULL,
       'test_nulls.float' => NULL,
@@ -367,6 +371,8 @@ class CustomValueTest extends Api4TestBase {
       ->execute()->single();
 
     $this->assertSame(NULL, $contact['test_nulls.string']);
+    $this->assertSame('test', $contact['test_nulls.default_value_string']);
+    $this->assertSame(NULL, $contact['test_nulls.default_value_required_string']);
     $this->assertSame(NULL, $contact['test_nulls.select']);
     $this->assertSame(NULL, $contact['test_nulls.int']);
     $this->assertSame(NULL, $contact['test_nulls.float']);
@@ -382,6 +388,8 @@ class CustomValueTest extends Api4TestBase {
     Contact::update(FALSE)
       ->addWhere('id', '=', $cid)
       ->addValue('test_nulls.string', 'test')
+      ->addValue('test_nulls.default_value_string', 't')
+      ->addValue('test_nulls.default_value_required_string', 't')
       ->addValue('test_nulls.select', ['a', 'b'])
       ->addValue('test_nulls.int', 0)
       ->addValue('test_nulls.float', 0.0)
@@ -402,6 +410,8 @@ class CustomValueTest extends Api4TestBase {
 
     // Assert all values were set correctly
     $this->assertSame('test', $contact['test_nulls.string']);
+    $this->assertSame('t', $contact['test_nulls.default_value_string']);
+    $this->assertSame('t', $contact['test_nulls.default_value_required_string']);
     $this->assertSame(['a', 'b'], $contact['test_nulls.select']);
     $this->assertSame(0, $contact['test_nulls.int']);
     $this->assertSame(0.0, $contact['test_nulls.float']);
@@ -418,6 +428,8 @@ class CustomValueTest extends Api4TestBase {
     Contact::update(FALSE)
       ->addWhere('id', '=', $cid)
       ->addValue('test_nulls.string', NULL)
+      ->addValue('test_nulls.default_value_string', NULL)
+      ->addValue('test_nulls.default_value_required_string', NULL)
       ->addValue('test_nulls.select', NULL)
       ->addValue('test_nulls.select', NULL)
       ->addValue('test_nulls.int', NULL)
@@ -440,6 +452,8 @@ class CustomValueTest extends Api4TestBase {
 
     // Assert all values are NULL again
     $this->assertSame(NULL, $contact['test_nulls.string']);
+    $this->assertSame('test', $contact['test_nulls.default_value_required_string']);
+    $this->assertSame(NULL, $contact['test_nulls.default_value_string']);
     $this->assertSame(NULL, $contact['test_nulls.select']);
     $this->assertSame(NULL, $contact['test_nulls.int']);
     $this->assertSame(NULL, $contact['test_nulls.float']);
