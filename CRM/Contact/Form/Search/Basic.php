@@ -51,12 +51,13 @@ class CRM_Contact_Form_Search_Basic extends CRM_Contact_Form_Search {
     // Get hierarchical listing of groups, respecting ACLs for CRM-16836.
     $groupHierarchy = CRM_Contact_BAO_Group::getGroupsHierarchy($this->_group, NULL, '- ', TRUE);
     if (!empty($searchOptions['groups'])) {
-      $this->addField('group', [
+      $field = $this->addField('group', [
         'entity' => 'group_contact',
         'label' => ts('in'),
         'placeholder' => ts('- any group -'),
         'options' => $groupHierarchy,
       ]);
+      $field->setOptionTextEscaped();
     }
 
     if (!empty($searchOptions['tags'])) {
