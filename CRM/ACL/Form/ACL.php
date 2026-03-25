@@ -125,7 +125,8 @@ class CRM_ACL_Form_ACL extends CRM_Admin_Form {
       '0' => ts('All Events'),
     ] + CRM_Event_PseudoConstant::event(NULL, FALSE, "is_template = 0");
 
-    $this->add('select', 'group_id', ts('Group'), $group);
+    $groupElement = $this->add('select', 'group_id', ts('Group'), $group);
+    $groupElement->setOptionTextEscaped();
     $this->add('select', 'custom_group_id', ts('Custom Data'), $customGroup);
     $this->add('select', 'uf_group_id', ts('Profile'), $ufGroup);
     $this->add('select', 'event_id', ts('Event'), $event);

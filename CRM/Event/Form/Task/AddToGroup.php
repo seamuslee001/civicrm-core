@@ -107,6 +107,7 @@ class CRM_Event_Form_Task_AddToGroup extends CRM_Event_Form_Task {
     $group = ['' => ts('- select group -')] + CRM_Core_PseudoConstant::group();
 
     $groupElement = $this->add('select', 'group_id', ts('Select Group'), $group);
+    $groupElement->setOptionTextEscaped();
 
     $this->_title = $group[$this->_id];
 
