@@ -53,7 +53,7 @@ class CRM_Contact_Import_Form_Preview extends CRM_Import_Form_Preview {
       $this->addElement('select', 'groups', ts('Add imported records to existing group(s)'), $groups, [
         'multiple' => 'multiple',
         'class' => 'crm-select2',
-      ]);
+      ])->setOptionTextEscaped();
     }
 
     //display new tag
