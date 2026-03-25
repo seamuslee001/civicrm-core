@@ -459,7 +459,7 @@ class CRM_Core_Form_Search extends CRM_Core_Form {
           'multiple' => 'multiple',
           'class' => 'crm-select2',
         ]
-      );
+      )->setOptionTextEscaped();
       $this->searchFieldMetadata['Contact']['group'] = ['name' => 'group', 'type' => CRM_Utils_Type::T_INT, 'is_pseudofield' => TRUE, 'html' => ['type' => 'Select']];
     }
 
