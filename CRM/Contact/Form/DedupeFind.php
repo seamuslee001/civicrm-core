@@ -51,7 +51,8 @@ class CRM_Contact_Form_DedupeFind extends CRM_Admin_Form {
 
     $groupList = ['' => ts('- All Contacts -')] + CRM_Core_PseudoConstant::nestedGroup();
 
-    $this->add('select', 'group_id', ts('Select Group'), $groupList, FALSE, ['class' => 'crm-select2 huge']);
+    $groupElement = $this->add('select', 'group_id', ts('Select Group'), $groupList, FALSE, ['class' => 'crm-select2 huge']);
+    $groupElement->setOptionTextEscaped();
     $this->add('text', 'limit', ts('No of contacts to find matches for '));
 
     // To improve usability for smaller sites, we don't show the limit field unless a default limit has been set.

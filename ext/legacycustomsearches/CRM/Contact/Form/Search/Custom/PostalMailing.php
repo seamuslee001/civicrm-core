@@ -52,7 +52,8 @@ class CRM_Contact_Form_Search_Custom_PostalMailing extends CRM_Contact_Form_Sear
    */
   public function buildForm(&$form) {
     $groups = ['' => ts('- select group -')] + CRM_Core_PseudoConstant::nestedGroup(FALSE);
-    $form->addElement('select', 'group_id', ts('Group'), $groups, ['class' => 'crm-select2 huge']);
+    $groupElement = $form->addElement('select', 'group_id', ts('Group'), $groups, ['class' => 'crm-select2 huge']);
+    $groupElement->setOptionTextEscaped();
 
     /**
      * if you are using the standard template, this array tells the template what elements

@@ -29,6 +29,7 @@ class CRM_Contact_Form_Task_RemoveFromGroup extends CRM_Contact_Form_Task {
     // add select for groups
     $group = ['' => ts('- select group -')] + CRM_Core_PseudoConstant::nestedGroup();
     $groupElement = $this->add('select', 'group_id', ts('Select Group'), $group, TRUE, ['class' => 'crm-select2 huge']);
+    $groupElement->setOptionTextEscaped();
 
     $this->setTitle(ts('Remove Contacts from Group'));
     $this->addDefaultButtons(ts('Remove from Group'));
