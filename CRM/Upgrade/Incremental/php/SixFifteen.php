@@ -9,6 +9,8 @@
  +--------------------------------------------------------------------+
  */
 
+use Civi\Api4\CustomField;
+
 /**
  * Upgrade logic for the 6.15.x series.
  *
@@ -29,6 +31,23 @@ class CRM_Upgrade_Incremental_php_SixFifteen extends CRM_Upgrade_Incremental_Bas
    */
   public function upgrade_6_15_alpha1($rev): void {
     $this->addTask(ts('Upgrade DB to %1: SQL', [1 => $rev]), 'runSql', $rev);
+    $this->addTask('dev/core#6390 Remove indexes from serialied custom fields', 'removeSearchIndexForSerializedCustomFields');
+  }
+
+  public static function removeSearchIndexForSerializedCustomFields($ctx): bool {
+    $customFields = CustomField::get(FALSE)
+      ->addWhere('serialize', '!=', 0)
+      ->addWhere('is_searchable', '=', TRUE)
+      ->execute();
+    foreach ($customFields as $customField) {
+      $params = [
+        'id' => $customField['id'],
+        'is_searchable' => 0,
+        'serialize' => $customField['serialize'],
+      ];
+      CRM_Core_BAO_CustomFIeld::create($params);
+    }
+    return TRUE;
   }
 
 }

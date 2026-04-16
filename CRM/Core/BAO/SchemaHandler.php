@@ -200,7 +200,8 @@ class CRM_Core_BAO_SchemaHandler {
 
     // Add index if field is searchable if it does not reference a foreign key
     // (skip indexing FK fields because it would be redundant to have 2 indexes)
-    if (!empty($params['searchable']) && empty($params['fk_table_name']) && !$searchIndexExists) {
+    // Also do not add an index if it is a searlizable column
+    if (!empty($params['searchable']) && empty($params['fk_table_name']) && !$searchIndexExists && empty($params['serialize'])) {
       $indexName = $params['name'];
       if ($params['type'] === 'text' || self::getFieldLength($params['type']) > self::MAX_INDEX_LENGTH) {
         $indexName .= '(' . self::MAX_INDEX_LENGTH . ')';
